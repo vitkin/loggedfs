@@ -23,3 +23,6 @@ clean:
 
 mrproper: clean
 	rm loggedfs
+	
+release:
+	tar -c --exclude="CVS" src/ config.cfg  Makefile | bzip2 - > loggedfs.tar.bz2
