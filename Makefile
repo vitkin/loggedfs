@@ -1,20 +1,25 @@
 CC=g++
 CFLAGS=-Wall -ansi -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=22 -DRLOG_COMPONENT="loggedfs"
 LDFLAGS=-Wall -ansi -lpcre -lfuse -lrlog
+srcdir=src
+builddir=build
 
+all: $(builddir) loggedfs
 
-all: loggedfs
-loggedfs: loggedfs.o Config.o
-	$(CC) -o loggedfs loggedfs.o Config.o $(LDFLAGS)
+$(builddir):
+	mkdir $(builddir)
 
-loggedfs.o: loggedfs.cpp
-	$(CC) -o loggedfs.o -c loggedfs.cpp $(CFLAGS)
+loggedfs: $(builddir)/loggedfs.o $(builddir)/Config.o
+	$(CC) -o loggedfs $(builddir)/loggedfs.o $(builddir)/Config.o $(LDFLAGS)
 
-Config.o: Config.cpp Config.h
-	$(CC) -o Config.o -c Config.cpp $(CFLAGS)
+$(builddir)/loggedfs.o: $(srcdir)/loggedfs.cpp
+	$(CC) -o $(builddir)/loggedfs.o -c $(srcdir)/loggedfs.cpp $(CFLAGS)
+
+$(builddir)/Config.o: $(srcdir)/Config.cpp $(srcdir)/Config.h
+	$(CC) -o $(builddir)/Config.o -c $(srcdir)/Config.cpp $(CFLAGS)
 
 clean:
-	rm -rf *.o
+	rm -rf $(builddir)
 
 mrproper: clean
-	rm -rf hello
+	rm loggedfs
