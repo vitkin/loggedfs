@@ -1,8 +1,8 @@
 /*****************************************************************************
- * Author:   RÃ©mi Flament <remipouak@yahoo.fr>
+ * Author:   Rémi Flament <remipouak@yahoo.fr>
  *
  *****************************************************************************
- * Copyright (c) 2005, RÃ©mi Flament
+ * Copyright (c) 2005, Rémi Flament
  *
  * This library is free software; you can distribute it and/or modify it under
  * the terms of the GNU General Public License (GPL), as published by the Free
@@ -21,7 +21,9 @@
 
 using namespace std;
 #include <vector>
-#include <string>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include "Filter.h"
 
 class Config
 {
@@ -30,16 +32,17 @@ public:
     ~Config();
 
     bool load(const char *fileName);
+    bool loadFromXml(const char *fileName);
     bool isEnabled() {return enabled;};
-    bool shouldLog(const char* filename);
+    bool shouldLog(const char* filename, int uid, const char* action);
     char* toString();
 
 
 private:
-    std::vector<string> includes;
-    std::vector<string> excludes;
+    void parse(xmlNode*);
+    std::vector<Filter> includes;
+    std::vector<Filter> excludes;
     bool enabled;
-    bool matches(const char*,const char*);
 };
 
 #endif

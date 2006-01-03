@@ -19,9 +19,18 @@
 #include "Config.h"
 #include <fstream>
 #include <iostream>
-#include <pcre.h>
 
-#define OVECCOUNT 30
+
+
+
+xmlChar* INCLUDE=xmlCharStrdup("include");
+xmlChar* EXCLUDE=xmlCharStrdup("exclude");
+xmlChar* USER=xmlCharStrdup("uid");
+xmlChar* EXTENSION=xmlCharStrdup("extension");
+xmlChar* ACTION=xmlCharStrdup("action");
+xmlChar* ROOT=xmlCharStrdup("loggedFS");
+xmlChar* LOG_ENABLED=xmlCharStrdup("logEnabled");
+
 
 Config::Config()
 {
@@ -34,79 +43,97 @@ Config::~Config()
     excludes.clear();
 }
 
-bool Config::load(const char* filename)
+void Config::parse(xmlNode * a_node)
 {
-    char line[512];
-    char buffer[20];
-    FILE* fd = fopen( filename, "r" );
-    if(fd < 0)
-        return false;
 
-    while (!feof(fd)) {
-        fscanf(fd,"%[^\n]\n", line);
+xmlNode *cur_node = NULL;
 
-        if (line[0] == '#')
-            continue;
+for (cur_node = a_node; cur_node; cur_node = cur_node->next) 
+	{
+	if (cur_node->type == XML_ELEMENT_NODE) 
+		{
+		xmlAttr *attr=cur_node->properties;
+		if (xmlStrcmp(cur_node->name,ROOT)==0)
+			{
+			while (attr!=NULL)
+				{
+				if (xmlStrcmp(attr->name,LOG_ENABLED)==0)
+					{
+					//enable or disable loggedfs
+					if (xmlStrcmp(attr->children->content,xmlCharStrdup("true"))!=0)
+						{
+						enabled=false;
+						printf("Log disabled\n");
+						}
+					else	{
+						printf("Log enabled\n");
+						}
+					}
+				else printf("unknown attribute : %s\n",attr->name);
+				attr=attr->next;
+				}
+			}
+		if (xmlStrcmp(cur_node->name,INCLUDE)==0 || xmlStrcmp(cur_node->name,EXCLUDE)==0)
+			{
+			Filter* filter=new Filter();
+			char* buffer=new char[100];
+			while (attr!=NULL)
+				{
+				
+				sprintf(buffer,"%s",attr->children->content); // I guess there's another way to do that
+				if (xmlStrcmp(attr->name,EXTENSION)==0)
+					{
+					filter->setExtension(buffer);
+					printf("Setting extension %s for a loggedfs filter\n",buffer);
+					}
+				else if (xmlStrcmp(attr->name,USER)==0)
+					{
+					if (strcmp(buffer,"*"))
+						filter->setUID(atoi(buffer));
+					else filter->setUID(-1); // every users
+					printf("Setting uid %d for a loggedfs filter\n",filter->getUID());
+					}
+				else if (xmlStrcmp(attr->name,ACTION)==0)
+					{
+					filter->setAction(buffer);
+					printf("Setting action %s for a loggedfs filter\n",buffer);
+					}
+				else printf("unknown attribute : %s\n",attr->name);
+				attr=attr->next;
+				}
+			
+			if (xmlStrcmp(cur_node->name,INCLUDE)==0)
+				{
+				includes.push_back(*filter);
+				}
+			else excludes.push_back(*filter);
+			delete buffer;
+			}		
+    		}
+		
 
-        if (line[0] == ' ')
-            continue;
+   	parse(cur_node->children);
+	}
 
-        if (sscanf(line, "logEnabled %s",buffer) == 1) {
-            if (!strcmp(buffer,"true"))
-            {
-                enabled=true;
-            }
-            else enabled=false;
-        }
-
-        if (sscanf(line, "include %s",buffer) == 1) {
-            includes.push_back(buffer);
-        }
-
-        if (sscanf(line, "exclude %s",buffer) == 1) {
-            excludes.push_back(buffer);
-        }
-    }
-    fclose(fd);
-    return true;
 }
 
-bool Config::matches( const char* str,const char* pattern)
+bool Config::loadFromXml(const char* filename)
 {
-    pcre *re;
-    const char *error;
-    int ovector[OVECCOUNT];
-    int erroffset;
-
-
-    re = pcre_compile(
-             pattern,
-             0,
-             &error,
-             &erroffset,
-             NULL);
-
-
-    if (re == NULL)
-    {
-        printf("PCRE compilation failed at offset %d: %s\n", erroffset, error);
-        return false;
-    }
-
-    int rc = pcre_exec(
-                 re,                   /* the compiled pattern */
-                 NULL,                 /* no extra data - we didn't study the pattern */
-                 str,              /* the subject string */
-                 strlen(str),       /* the length of the subject */
-                 0,                    /* start at offset 0 in the subject */
-                 0,                    /* default options */
-                 ovector,              /* output vector for substring information */
-                 OVECCOUNT);           /* number of elements in the output vector */
-
-    return (rc >= 0);
+	xmlDoc *doc = NULL;
+	xmlNode *root_element = NULL;
+	
+	LIBXML_TEST_VERSION
+	
+	doc = xmlReadFile(filename, NULL, 0);
+	root_element = xmlDocGetRootElement(doc);
+	
+	parse(root_element);
+	xmlFreeDoc(doc);
+	xmlCleanupParser();
+	return true;
 }
 
-bool Config::shouldLog(const char* filename)
+bool Config::shouldLog(const char* filename, int uid, const char* action)
 {
     bool should=false;
     if (enabled)
@@ -115,12 +142,14 @@ bool Config::shouldLog(const char* filename)
 	{
 		for (unsigned int i=0;i<includes.size() && !should;i++)
 		{
-		if (matches(filename,includes[i].c_str()))
+		Filter f=includes[i];
+		if (f.matches(filename,uid,action))
 			should=true;
 		}
 		for (unsigned int i=0;i<excludes.size() && should;i++)
 		{
-		if (matches(filename,excludes[i].c_str()))
+		Filter f=excludes[i];
+		if (f.matches(filename,uid,action))
 			should=false;
 		}
 	}
@@ -148,7 +177,7 @@ char* Config::toString()
         buf="false\n";
 
 
-    for (unsigned int i=0;i<includes.size();i++)
+   /* for (unsigned int i=0;i<includes.size();i++)
     {
         buf+="include "+includes[i]+"\n";
     }
@@ -156,7 +185,7 @@ char* Config::toString()
     for (unsigned int i=0;i<excludes.size();i++)
     {
         buf+="exclude "+excludes[i]+"\n";
-    }
+    }*/
 
 
     return strdup(buf.c_str());

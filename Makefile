@@ -1,6 +1,6 @@
 CC=g++
-CFLAGS=-Wall -ansi -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=22 -DRLOG_COMPONENT="loggedfs"
-LDFLAGS=-Wall -ansi -lpcre -lfuse -lrlog
+CFLAGS=-Wall -ansi -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=22 -DRLOG_COMPONENT="loggedfs" `xml2-config --cflags`
+LDFLAGS=-Wall -ansi -lpcre -lfuse -lrlog `xml2-config --libs`
 srcdir=src
 builddir=build
 
@@ -9,20 +9,22 @@ all: $(builddir) loggedfs
 $(builddir):
 	mkdir $(builddir)
 
-loggedfs: $(builddir)/loggedfs.o $(builddir)/Config.o
-	$(CC) -o loggedfs $(builddir)/loggedfs.o $(builddir)/Config.o $(LDFLAGS)
-
-$(builddir)/loggedfs.o: $(srcdir)/loggedfs.cpp
+loggedfs: $(builddir)/loggedfs.o $(builddir)/Config.o $(builddir)/Filter.o
+	$(CC) -o loggedfs $(builddir)/loggedfs.o $(builddir)/Config.o $(builddir)/Filter.o $(LDFLAGS)
+$(builddir)/loggedfs.o: $(builddir)/Config.o $(builddir)/Filter.o $(srcdir)/loggedfs.cpp
 	$(CC) -o $(builddir)/loggedfs.o -c $(srcdir)/loggedfs.cpp $(CFLAGS)
 
-$(builddir)/Config.o: $(srcdir)/Config.cpp $(srcdir)/Config.h
+$(builddir)/Config.o: $(builddir)/Filter.o $(srcdir)/Config.cpp $(srcdir)/Config.h
 	$(CC) -o $(builddir)/Config.o -c $(srcdir)/Config.cpp $(CFLAGS)
 
+$(builddir)/Filter.o: $(srcdir)/Filter.cpp $(srcdir)/Filter.h
+	$(CC) -o $(builddir)/Filter.o -c $(srcdir)/Filter.cpp $(CFLAGS)
+
 clean:
-	rm -rf $(builddir)
+	rm -rf $(builddir)/
 
 mrproper: clean
-	rm loggedfs
+	rm -rf loggedfs
 	
 release:
-	tar -c --exclude="CVS" src/ config.cfg  Makefile | bzip2 - > loggedfs.tar.bz2
+	tar -c --exclude="CVS" $(srcdir)/ loggedfs.xml  Makefile | bzip2 - > loggedfs.tar.bz2
