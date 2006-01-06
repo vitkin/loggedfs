@@ -84,19 +84,16 @@ for (cur_node = a_node; cur_node; cur_node = cur_node->next)
 				if (xmlStrcmp(attr->name,EXTENSION)==0)
 					{
 					filter->setExtension(buffer);
-					printf("Setting extension %s for a loggedfs filter\n",buffer);
 					}
 				else if (xmlStrcmp(attr->name,USER)==0)
 					{
 					if (strcmp(buffer,"*"))
 						filter->setUID(atoi(buffer));
 					else filter->setUID(-1); // every users
-					printf("Setting uid %d for a loggedfs filter\n",filter->getUID());
 					}
 				else if (xmlStrcmp(attr->name,ACTION)==0)
 					{
 					filter->setAction(buffer);
-					printf("Setting action %s for a loggedfs filter\n",buffer);
 					}
 				else printf("unknown attribute : %s\n",attr->name);
 				attr=attr->next;
