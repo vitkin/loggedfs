@@ -465,7 +465,7 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
 
     int res;
 
-    while ((res = getopt (argc, argv, "fc:")) != -1)
+    while ((res = getopt (argc, argv, "pfc:")) != -1)
     {
         switch (res)
         {
@@ -475,6 +475,10 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
             // this option was added in fuse 2.x
             PUSHARG("-f");
             break;
+	case 'p':
+	    PUSHARG("-o");
+	    PUSHARG("allow_other");
+	    break;
         case 'c':
             out->configFilename=optarg;
             break;
