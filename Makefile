@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-Wall -ansi -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=22 -DRLOG_COMPONENT="loggedfs" `xml2-config --cflags`
+CFLAGS=-Wall -ansi -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=23 -DRLOG_COMPONENT="loggedfs" `xml2-config --cflags`
 LDFLAGS=-Wall -ansi -lpcre -lfuse -lrlog `xml2-config --libs`
 srcdir=src
 builddir=build
