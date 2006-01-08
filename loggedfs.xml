@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<loggedFS logEnabled="true">
+<loggedFS logEnabled="true" printProcessName="true">
 	<includes>
 		<include extension=".*" uid="*" action=".*"/>
 	</includes>
 	<excludes>
 		<exclude extension=".*\.xml$" uid="*" action=".*"/>
-		<exclude extension=".*" uid="1000" action=".*"/>
+		<exclude extension=".*" uid="500" action=".*"/>
 		<exclude extension=".*" uid="*" action="getattr"/>
 	</excludes>
 </loggedFS>

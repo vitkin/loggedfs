@@ -30,11 +30,14 @@ xmlChar* EXTENSION=xmlCharStrdup("extension");
 xmlChar* ACTION=xmlCharStrdup("action");
 xmlChar* ROOT=xmlCharStrdup("loggedFS");
 xmlChar* LOG_ENABLED=xmlCharStrdup("logEnabled");
+xmlChar* PNAME_ENABLED=xmlCharStrdup("printProcessName");
 
 
 Config::Config()
 {
-    enabled=true; // default
+    // default values
+    enabled=true; 
+    pNameEnabled=true;
 }
 
 Config::~Config()
@@ -69,6 +72,18 @@ for (cur_node = a_node; cur_node; cur_node = cur_node->next)
 						printf("Log enabled\n");
 						}
 					}
+				else if (xmlStrcmp(attr->name,PNAME_ENABLED)==0)
+					{
+					//enable or disable process name prints in loggedfs
+					if (xmlStrcmp(attr->children->content,xmlCharStrdup("true"))!=0)
+						{
+						pNameEnabled=false;
+						printf("print process name disabled\n");
+						}
+					else	{
+						printf("print process name enabled\n");
+						}
+					}
 				else printf("unknown attribute : %s\n",attr->name);
 				attr=attr->next;
 				}
@@ -90,6 +105,7 @@ for (cur_node = a_node; cur_node; cur_node = cur_node->next)
 					if (strcmp(buffer,"*"))
 						filter->setUID(atoi(buffer));
 					else filter->setUID(-1); // every users
+
 					}
 				else if (xmlStrcmp(attr->name,ACTION)==0)
 					{
@@ -157,34 +173,6 @@ bool Config::shouldLog(const char* filename, int uid, const char* action)
 
     }
     
-
     return should;
-}
-
-char* Config::toString()
-{
-
-    string buf;
-
-    buf="logEnabled : ";
-
-    if (enabled)
-        buf+="true\n";
-    else
-        buf="false\n";
-
-
-   /* for (unsigned int i=0;i<includes.size();i++)
-    {
-        buf+="include "+includes[i]+"\n";
-    }
-
-    for (unsigned int i=0;i<excludes.size();i++)
-    {
-        buf+="exclude "+excludes[i]+"\n";
-    }*/
-
-
-    return strdup(buf.c_str());
 }
 

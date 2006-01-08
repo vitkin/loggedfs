@@ -34,6 +34,8 @@ public:
     bool load(const char *fileName);
     bool loadFromXml(const char *fileName);
     bool isEnabled() {return enabled;};
+    bool isTimeEnabled() {return timeEnabled;};
+    bool isPrintProcessNameEnabled() {return pNameEnabled;};
     bool shouldLog(const char* filename, int uid, const char* action);
     char* toString();
 
@@ -43,6 +45,8 @@ private:
     std::vector<Filter> includes;
     std::vector<Filter> excludes;
     bool enabled;
+    bool timeEnabled;
+    bool pNameEnabled;
 };
 
 #endif
