@@ -2,11 +2,11 @@
 
 <loggedFS logEnabled="true" printProcessName="true">
 	<includes>
-		<include extension=".*" uid="*" action=".*"/>
+		<include extension=".*" uid="*" action=".*" retname=".*"/>
 	</includes>
 	<excludes>
-		<exclude extension=".*\.xml$" uid="*" action=".*"/>
-		<exclude extension=".*" uid="500" action=".*"/>
-		<exclude extension=".*" uid="*" action="getattr"/>
+		<exclude extension=".*\.xml$" uid="*" action=".*" retname=".*"/>
+		<exclude extension=".*" uid="500" action=".*" retname="FAILURE"/>
+		<exclude extension=".*" uid="*" action="getattr" retname="SUCCESS"/>
 	</excludes>
 </loggedFS>
