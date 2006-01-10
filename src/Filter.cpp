@@ -50,9 +50,9 @@ bool Filter::matches( const char* str,const char* pattern)
 
 
 
-bool Filter::matches(const char* path,int uid, const char *action)
+bool Filter::matches(const char* path,int uid, const char *action, const char* retname)
 {
-bool a= (matches(path,this->extension) && (uid==this->uid || this->uid==-1) && matches(action,this->action));
+bool a= (matches(path,this->extension) && (uid==this->uid || this->uid==-1) && matches(action,this->action) && matches(retname,this->retname));
 
 return a;
 }

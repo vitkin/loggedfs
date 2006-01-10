@@ -28,6 +28,7 @@ xmlChar* EXCLUDE=xmlCharStrdup("exclude");
 xmlChar* USER=xmlCharStrdup("uid");
 xmlChar* EXTENSION=xmlCharStrdup("extension");
 xmlChar* ACTION=xmlCharStrdup("action");
+xmlChar* RETNAME=xmlCharStrdup("retname");
 xmlChar* ROOT=xmlCharStrdup("loggedFS");
 xmlChar* LOG_ENABLED=xmlCharStrdup("logEnabled");
 xmlChar* PNAME_ENABLED=xmlCharStrdup("printProcessName");
@@ -111,6 +112,10 @@ for (cur_node = a_node; cur_node; cur_node = cur_node->next)
 					{
 					filter->setAction(buffer);
 					}
+				else if (xmlStrcmp(attr->name,RETNAME)==0)
+					{
+					filter->setRetname(buffer);
+					}
 				else printf("unknown attribute : %s\n",attr->name);
 				attr=attr->next;
 				}
@@ -146,7 +151,7 @@ bool Config::loadFromXml(const char* filename)
 	return true;
 }
 
-bool Config::shouldLog(const char* filename, int uid, const char* action)
+bool Config::shouldLog(const char* filename, int uid, const char* action, const char* retname)
 {
     bool should=false;
     if (enabled)
@@ -156,13 +161,13 @@ bool Config::shouldLog(const char* filename, int uid, const char* action)
 		for (unsigned int i=0;i<includes.size() && !should;i++)
 		{
 		Filter f=includes[i];
-		if (f.matches(filename,uid,action))
+		if (f.matches(filename,uid,action,retname))
 			should=true;
 		}
 		for (unsigned int i=0;i<excludes.size() && should;i++)
 		{
 		Filter f=excludes[i];
-		if (f.matches(filename,uid,action))
+		if (f.matches(filename,uid,action,retname))
 			should=false;
 		}
 	}
