@@ -32,7 +32,9 @@ public:
     ~Config();
 
     bool load(const char *fileName);
-    bool loadFromXml(const char *fileName);
+    bool loadFromXmlFile(const char *fileName);
+    bool loadFromXmlBuffer(const char *buffer);
+    bool loadFromXml(xmlDoc* doc);
     bool isEnabled() {return enabled;};
     bool isTimeEnabled() {return timeEnabled;};
     bool isPrintProcessNameEnabled() {return pNameEnabled;};

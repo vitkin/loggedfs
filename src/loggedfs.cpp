@@ -56,6 +56,8 @@ using namespace rlog;
 static RLogChannel *Info = DEF_CHANNEL("info", Log_Info);
 static Config config;
 static int savefd;
+static int fileLog=0;
+static StdioNode* fileLogNode=NULL;
 
 const int MaxFuseArgs = 32;
 struct LoggedFS_Args
@@ -82,7 +84,7 @@ static bool isAbsolutePath( const char *fileName )
 
 static char* getAbsolutePath(const char *path)
 {
-  char *realPath=new char[strlen(path)+strlen(loggedfsArgs->mountPoint)+1];
+    char *realPath=new char[strlen(path)+strlen(loggedfsArgs->mountPoint)+1];
     strcpy(realPath,loggedfsArgs->mountPoint);
     if (realPath[strlen(realPath)-1]=='/')
         realPath[strlen(realPath)-1]='\0';
@@ -93,13 +95,13 @@ static char* getAbsolutePath(const char *path)
 
 static char* getRelativePath(const char* path)
 {
-  char* rPath=new char[strlen(path)+2];
-  
-  fchdir(savefd); //TODO remove this, we need to do it only once
-  strcpy(rPath,".");
-  strcat(rPath,path);
-  
-  return rPath;
+    char* rPath=new char[strlen(path)+2];
+
+    fchdir(savefd); //TODO remove this, we need to do it only once
+    strcpy(rPath,".");
+    strcat(rPath,path);
+
+    return rPath;
 }
 
 /*
@@ -118,7 +120,7 @@ static char* getcallername()
 
 static void loggedfs_log(const char* path,const char* action,const int returncode,const char *format,...)
 {
-   char *retname;
+    char *retname;
     if (returncode >= 0)
         retname = "SUCCESS";
     else
@@ -153,7 +155,7 @@ static int loggedFS_getattr(const char *path, struct stat *stbuf)
 static int loggedFS_readlink(const char *path, char *buf, size_t size)
 {
     int res;
-    
+
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
     res = readlink(path, buf, size - 1);
@@ -268,7 +270,7 @@ static int loggedFS_symlink(const char *from, const char *to)
         return -errno;
     else
         res = lchown(from, fuse_get_context()->uid, fuse_get_context()->gid);
- 
+
 
     return 0;
 }
@@ -382,7 +384,7 @@ static int loggedFS_read(const char *path, char *buf, size_t size, off_t offset,
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
     (void) fi;
-    
+
     timeval begin,end;
 
     gettimeofday(&begin , NULL );
@@ -414,11 +416,11 @@ static int loggedFS_write(const char *path, const char *buf, size_t size,
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
     (void) fi;
-    
+
     timeval begin,end;
 
     gettimeofday(&begin , NULL );
-    
+
     fd = open(path, O_WRONLY);
     if(fd == -1) {
         res = -errno;
@@ -427,11 +429,11 @@ static int loggedFS_write(const char *path, const char *buf, size_t size,
     } else {
         loggedfs_log(aPath,"write",0,"write %d bytes to %s",size,aPath);
     }
- 
+
 
     res = pwrite(fd, buf, size, offset);
     gettimeofday(&end , NULL );
-    
+
     if(res == -1)
         res = -errno;
     else loggedfs_log(aPath,"write",0, "%d bytes written to %s in %d microseconds.",res,aPath,end.tv_usec-begin.tv_usec);
@@ -533,7 +535,7 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
 
     int res;
 
-    while ((res = getopt (argc, argv, "pfc:")) != -1)
+    while ((res = getopt (argc, argv, "pfc:l:")) != -1)
     {
         switch (res)
         {
@@ -542,14 +544,22 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
             out->isDaemon = false;
             // this option was added in fuse 2.x
             PUSHARG("-f");
+	    rLog(Info,"LoggedFS not running as a daemon");
             break;
-	case 'p':
-	    PUSHARG("-o");
-	    PUSHARG("allow_other,default_permissions");
-	    //PUSHARG("default_permissions");		    
-	    break;
+        case 'p':
+            PUSHARG("-o");
+            PUSHARG("allow_other,default_permissions");
+            rLog(Info,"LoggedFS running as a public filesystem");
+            break;
         case 'c':
             out->configFilename=optarg;
+	    rLog(Info,"Configuration file : %s",optarg);
+            break;
+        case 'l':
+            fileLog=open(optarg,O_WRONLY|O_CREAT|O_APPEND );
+            fileLogNode=new StdioNode(fileLog);
+            fileLogNode->subscribeTo( RLOG_CHANNEL("") );
+	    rLog(Info,"LoggedFS log file : %s",optarg);
             break;
         default:
 
@@ -564,7 +574,7 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
     }
     else
     {
-        fprintf(stderr,"Missing options\n");
+        fprintf(stderr,"Missing mountpoint\n");
         return false;
     }
 
@@ -581,10 +591,10 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
         }
     }
 
-   if(!isAbsolutePath( out->mountPoint ))
+    if(!isAbsolutePath( out->mountPoint ))
     {
         fprintf(stderr,"You must use absolute paths "
-                "(beginning with '/')\n");
+                "(beginning with '/') for %s\n",out->mountPoint);
         return false;
     }
     return true;
@@ -596,10 +606,13 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
 int main(int argc, char *argv[])
 {
     RLogInit( argc, argv );
-    StdioNode* stdLog=new StdioNode( STDERR_FILENO );
+
+    StdioNode* stdLog=new StdioNode(STDERR_FILENO);
     stdLog->subscribeTo( RLOG_CHANNEL("") );
     SyslogNode *logNode = NULL;
-    
+    char* input=new char[2048]; // 2ko MAX input for configuration
+
+
 
 
     umask(0);
@@ -641,27 +654,61 @@ int main(int argc, char *argv[])
 
     if (processArgs(argc, argv, loggedfsArgs))
     {
-	if (loggedfsArgs->isDaemon)
-	{
-		logNode = new SyslogNode( "loggedfs" );
-		logNode->subscribeTo( RLOG_CHANNEL("") );
-		// disable stderr reporting..
-		delete stdLog;
-		stdLog = NULL;
-	}
-	printf("%s\n",loggedfsArgs->mountPoint);
-	rLog(Info, "LoggedFS starting at %s.",loggedfsArgs->mountPoint);
+        if (loggedfsArgs->isDaemon)
+        {
+            logNode = new SyslogNode( "loggedfs" );
+            logNode->subscribeTo( RLOG_CHANNEL("") );
+            // disable stderr reporting..
+            delete stdLog;
+            stdLog = NULL;
+        }
+
+        rLog(Info, "LoggedFS starting at %s.",loggedfsArgs->mountPoint);
+
         if (loggedfsArgs->configFilename!=NULL)
         {
-            rLog(Info, "Using configuration file %s.",loggedfsArgs->configFilename);
-            config.loadFromXml(loggedfsArgs->configFilename);
+
+            if (strcmp(loggedfsArgs->configFilename,"-")==0)
+            {
+                rLog(Info, "Using stdin configuration");
+                memset(input,0,2048);
+                char *ptr=input;
+
+                int size=0;
+                do {
+                    size=fread(ptr,1,1,stdin);
+                    ptr++;
+                }while (!feof(stdin) && size>0);
+                config.loadFromXmlBuffer(input);
+            }
+            else
+            {
+                rLog(Info, "Using configuration file %s.",loggedfsArgs->configFilename);
+                config.loadFromXmlFile(loggedfsArgs->configFilename);
+            }
         }
-	
-	rLog(Info,"chdir to %s",loggedfsArgs->mountPoint);
-	chdir(loggedfsArgs->mountPoint);
-	savefd = open(".", 0);
-	
-        return fuse_main(loggedfsArgs->fuseArgc,
-                         const_cast<char**>(loggedfsArgs->fuseArgv), &loggedFS_oper);
+
+        rLog(Info,"chdir to %s",loggedfsArgs->mountPoint);
+        chdir(loggedfsArgs->mountPoint);
+        savefd = open(".", 0);
+
+        fuse_main(loggedfsArgs->fuseArgc,
+                  const_cast<char**>(loggedfsArgs->fuseArgv), &loggedFS_oper);
+        delete stdLog;
+        stdLog = NULL;
+        if (fileLog!=0)
+        {
+            delete fileLogNode;
+            fileLogNode=NULL;
+            close(fileLog);
+        }
+        if (loggedfsArgs->isDaemon)
+        {
+            delete logNode;
+            logNode=NULL;
+        }
+        rLog(Info,"LoggedFS closing.");
+
     }
+    else rLog(Info,"LoggedFS not starting");
 }

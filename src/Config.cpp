@@ -135,20 +135,36 @@ for (cur_node = a_node; cur_node; cur_node = cur_node->next)
 
 }
 
-bool Config::loadFromXml(const char* filename)
+bool Config::loadFromXml(xmlDoc* doc)
 {
-	xmlDoc *doc = NULL;
+	
 	xmlNode *root_element = NULL;
-	
-	LIBXML_TEST_VERSION
-	
-	doc = xmlReadFile(filename, NULL, 0);
 	root_element = xmlDocGetRootElement(doc);
 	
 	parse(root_element);
 	xmlFreeDoc(doc);
 	xmlCleanupParser();
 	return true;
+}
+
+bool Config::loadFromXmlBuffer(const char* buffer)
+{
+	xmlDoc *doc = NULL;
+
+	LIBXML_TEST_VERSION
+	
+	doc=xmlReadMemory(buffer,strlen(buffer),"",NULL, XML_PARSE_NONET);
+	return loadFromXml(doc);
+}
+
+bool Config::loadFromXmlFile(const char* filename)
+{
+	xmlDoc *doc = NULL;
+
+	LIBXML_TEST_VERSION
+	
+	doc = xmlReadFile(filename, NULL, 0);
+	return loadFromXml(doc);
 }
 
 bool Config::shouldLog(const char* filename, int uid, const char* action, const char* retname)
