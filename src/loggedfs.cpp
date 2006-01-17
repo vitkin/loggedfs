@@ -385,9 +385,6 @@ static int loggedFS_read(const char *path, char *buf, size_t size, off_t offset,
     path=getRelativePath(path);
     (void) fi;
 
-    timeval begin,end;
-
-    gettimeofday(&begin , NULL );
     fd = open(path, O_RDONLY);
     if(fd == -1) {
         res = -errno;
@@ -398,11 +395,10 @@ static int loggedFS_read(const char *path, char *buf, size_t size, off_t offset,
     }
 
     res = pread(fd, buf, size, offset);
-    gettimeofday(&end , NULL );
 
     if(res == -1)
         res = -errno;
-    else loggedfs_log(aPath,"read",0, "%d bytes read from %s in %d microseconds",aPath,end.tv_usec-begin.tv_usec);
+    else loggedfs_log(aPath,"read",0, "%d bytes read from %s",aPath);
 
     close(fd);
     return res;
@@ -417,10 +413,6 @@ static int loggedFS_write(const char *path, const char *buf, size_t size,
     path=getRelativePath(path);
     (void) fi;
 
-    timeval begin,end;
-
-    gettimeofday(&begin , NULL );
-
     fd = open(path, O_WRONLY);
     if(fd == -1) {
         res = -errno;
@@ -430,13 +422,11 @@ static int loggedFS_write(const char *path, const char *buf, size_t size,
         loggedfs_log(aPath,"write",0,"write %d bytes to %s",size,aPath);
     }
 
-
     res = pwrite(fd, buf, size, offset);
-    gettimeofday(&end , NULL );
 
     if(res == -1)
         res = -errno;
-    else loggedfs_log(aPath,"write",0, "%d bytes written to %s in %d microseconds.",res,aPath,end.tv_usec-begin.tv_usec);
+    else loggedfs_log(aPath,"write",0, "%d bytes written to %s",res,aPath);
 
     close(fd);
     return res;
@@ -544,22 +534,27 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
             out->isDaemon = false;
             // this option was added in fuse 2.x
             PUSHARG("-f");
-	    rLog(Info,"LoggedFS not running as a daemon");
+	    	rLog(Info,"LoggedFS not running as a daemon");
             break;
         case 'p':
             PUSHARG("-o");
             PUSHARG("allow_other,default_permissions");
             rLog(Info,"LoggedFS running as a public filesystem");
             break;
+        case 'e':
+            PUSHARG("-o");
+            PUSHARG("nonempty");
+            rLog(Info,"Using existing directory");
+            break;
         case 'c':
             out->configFilename=optarg;
-	    rLog(Info,"Configuration file : %s",optarg);
+	    	rLog(Info,"Configuration file : %s",optarg);
             break;
         case 'l':
             fileLog=open(optarg,O_WRONLY|O_CREAT|O_APPEND );
             fileLogNode=new StdioNode(fileLog);
             fileLogNode->subscribeTo( RLOG_CHANNEL("") );
-	    rLog(Info,"LoggedFS log file : %s",optarg);
+	    	rLog(Info,"LoggedFS log file : %s",optarg);
             break;
         default:
 
