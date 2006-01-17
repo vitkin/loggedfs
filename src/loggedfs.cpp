@@ -607,7 +607,7 @@ int main(int argc, char *argv[])
 {
     RLogInit( argc, argv );
 
-    StdioNode* stdLog=new StdioNode(STDERR_FILENO);
+    StdioNode* stdLog=new StdioNode(STDOUT_FILENO);
     stdLog->subscribeTo( RLOG_CHANNEL("") );
     SyslogNode *logNode = NULL;
     char* input=new char[2048]; // 2ko MAX input for configuration
