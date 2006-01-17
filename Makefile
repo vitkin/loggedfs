@@ -22,9 +22,16 @@ $(builddir)/Filter.o: $(srcdir)/Filter.cpp $(srcdir)/Filter.h
 
 clean:
 	rm -rf $(builddir)/
+	
+install:
+	cp loggedfs.1.gz /usr/share/man/man1/
+	mkdir -p /usr/local/loggedfs/
+	cp loggedfs /usr/local/loggedfs/
+	ln -fs /usr/local/loggedfs/loggedfs /usr/local/bin/
+	cp loggedfs.xml /usr/local/loggedfs/
 
 mrproper: clean
 	rm -rf loggedfs
-	
+			
 release:
-	tar -c --exclude="CVS" $(srcdir)/ loggedfs.xml  Makefile | bzip2 - > loggedfs.tar.bz2
+	tar -c --exclude="CVS" $(srcdir)/ loggedfs.xml LICENSE loggedfs.1.gz Makefile | bzip2 - > loggedfs.tar.bz2
