@@ -525,7 +525,7 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
 
     int res;
 
-    while ((res = getopt (argc, argv, "pfc:l:")) != -1)
+    while ((res = getopt (argc, argv, "pfec:l:")) != -1)
     {
         switch (res)
         {
