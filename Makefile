@@ -24,6 +24,7 @@ clean:
 	rm -rf $(builddir)/
 	
 install:
+	gzip loggedfs.1
 	cp loggedfs.1.gz /usr/share/man/man1/
 	mkdir -p /usr/local/loggedfs/
 	cp loggedfs /usr/local/loggedfs/
