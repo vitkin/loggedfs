@@ -388,17 +388,17 @@ static int loggedFS_read(const char *path, char *buf, size_t size, off_t offset,
     fd = open(path, O_RDONLY);
     if(fd == -1) {
         res = -errno;
-        loggedfs_log(aPath,"read",-1,"read %d bytes from %s",size,aPath);
+        loggedfs_log(aPath,"read",-1,"read %d bytes from %s at offset %d",size,aPath,offset);
         return res;
     } else {
-        loggedfs_log(aPath,"read",0,"read %d bytes from %s",size,aPath);
+        loggedfs_log(aPath,"read",0,"read %d bytes from %s at offset %d",size,aPath,offset);
     }
 
     res = pread(fd, buf, size, offset);
 
     if(res == -1)
         res = -errno;
-    else loggedfs_log(aPath,"read",0, "%d bytes read from %s",aPath);
+    else loggedfs_log(aPath,"read",0, "%d bytes read from %s at offset %d",aPath,res,offset);
 
     close(fd);
     return res;
@@ -416,17 +416,17 @@ static int loggedFS_write(const char *path, const char *buf, size_t size,
     fd = open(path, O_WRONLY);
     if(fd == -1) {
         res = -errno;
-        loggedfs_log(aPath,"write",-1,"write %d bytes to %s",size,aPath);
+        loggedfs_log(aPath,"write",-1,"write %d bytes to %s at offset %d",size,aPath,offset);
         return res;
     } else {
-        loggedfs_log(aPath,"write",0,"write %d bytes to %s",size,aPath);
+        loggedfs_log(aPath,"write",0,"write %d bytes to %s at offset %d",size,aPath,offset);
     }
 
     res = pwrite(fd, buf, size, offset);
 
     if(res == -1)
         res = -errno;
-    else loggedfs_log(aPath,"write",0, "%d bytes written to %s",res,aPath);
+    else loggedfs_log(aPath,"write",0, "%d bytes written to %s at offset %d",res,aPath,offset);
 
     close(fd);
     return res;
@@ -504,6 +504,14 @@ static int loggedFS_removexattr(const char *path, const char *name)
 }
 #endif /* HAVE_SETXATTR */
 
+static void usage(char *name)
+{
+     fprintf(stderr, "Usage:\n");
+     fprintf(stderr, "%s [-h] | [-l log-file] [-c config-file] [-f] [-p] [-e] /directory-mountpoint\n",name);
+     fprintf(stderr, "Type 'man loggedfs' for more details\n");
+     return;
+}
+
 static
 bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
 {
@@ -525,11 +533,13 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
 
     int res;
 
-    while ((res = getopt (argc, argv, "pfec:l:")) != -1)
+    while ((res = getopt (argc, argv, "hpfec:l:")) != -1)
     {
         switch (res)
         {
-
+	case 'h':
+            usage(argv[0]);
+            return false;
         case 'f':
             out->isDaemon = false;
             // this option was added in fuse 2.x
@@ -556,6 +566,7 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
             fileLogNode->subscribeTo( RLOG_CHANNEL("") );
 	    	rLog(Info,"LoggedFS log file : %s",optarg);
             break;
+
         default:
 
             break;
@@ -570,6 +581,7 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
     else
     {
         fprintf(stderr,"Missing mountpoint\n");
+	usage(argv[0]);
         return false;
     }
 
@@ -705,5 +717,4 @@ int main(int argc, char *argv[])
         rLog(Info,"LoggedFS closing.");
 
     }
-    else rLog(Info,"LoggedFS not starting");
 }
