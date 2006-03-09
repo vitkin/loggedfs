@@ -398,7 +398,7 @@ static int loggedFS_read(const char *path, char *buf, size_t size, off_t offset,
 
     if(res == -1)
         res = -errno;
-    else loggedfs_log(aPath,"read",0, "%d bytes read from %s at offset %d",aPath,res,offset);
+    else loggedfs_log(aPath,"read",0, "%d bytes read from %s at offset %d",res,aPath,offset);
 
     close(fd);
     return res;
