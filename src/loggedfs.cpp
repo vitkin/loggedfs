@@ -1,7 +1,7 @@
 /*****************************************************************************
- * Author:   Rémi Flament <remipouak@yahoo.fr>
+ * Author:   Remi Flament <rflament at laposte dot net>
  *****************************************************************************
- * Copyright (c) 2005, Rémi Flament
+ * Copyright (c) 2005 - 2007, Remi Flament
  *
  * This library is free software; you can distribute it and/or modify it under
  * the terms of the GNU General Public License (GPL), as published by the Free
@@ -42,7 +42,8 @@
 #include <stdarg.h>
 #include <getopt.h>
 #include <sys/time.h>
-
+#include <pwd.h>
+#include <grp.h>
 #include "Config.h"
 
 #define PUSHARG(ARG) \
@@ -85,6 +86,7 @@ static bool isAbsolutePath( const char *fileName )
 static char* getAbsolutePath(const char *path)
 {
     char *realPath=new char[strlen(path)+strlen(loggedfsArgs->mountPoint)+1];
+
     strcpy(realPath,loggedfsArgs->mountPoint);
     if (realPath[strlen(realPath)-1]=='/')
         realPath[strlen(realPath)-1]='\0';
@@ -97,7 +99,6 @@ static char* getRelativePath(const char* path)
 {
     char* rPath=new char[strlen(path)+2];
 
-    fchdir(savefd); //TODO remove this, we need to do it only once
     strcpy(rPath,".");
     strcat(rPath,path);
 
@@ -133,10 +134,21 @@ static void loggedfs_log(const char* path,const char* action,const int returncod
         memset(buf,0,1024);
         vsprintf(buf,format,args);
         strcat(buf," {%s} [ pid = %d %s uid = %d ]");
-        rLog(Info, buf,retname, fuse_get_context()->pid,config.isPrintProcessNameEnabled()?getcallername():"", fuse_get_context()->uid);
+        if (returncode >= 0)
+		rLog(Info, buf,retname, fuse_get_context()->pid,config.isPrintProcessNameEnabled()?getcallername():"", fuse_get_context()->uid);
+	else
+		rError( buf,retname, fuse_get_context()->pid,config.isPrintProcessNameEnabled()?getcallername():"", fuse_get_context()->uid);
         va_end(args);
     }
 }
+
+static void* loggedFS_init(struct fuse_conn_info* info)
+{
+     fchdir(savefd);
+     close(savefd);
+     return NULL;
+}
+
 
 static int loggedFS_getattr(const char *path, struct stat *stbuf)
 {
@@ -145,12 +157,29 @@ static int loggedFS_getattr(const char *path, struct stat *stbuf)
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
     res = lstat(path, stbuf);
-    loggedfs_log(aPath,"getattr",res,"getattr %s",aPath);
+    loggedfs_log(aPath,"getattr",res,"getattr %1$s",aPath);
     if(res == -1)
         return -errno;
 
     return 0;
 }
+
+
+static int loggedFS_access(const char *path, int mask)
+{
+    int res;
+
+    char *aPath=getAbsolutePath(path);
+    path=getRelativePath(path);
+    res = access(path, mask);
+    loggedfs_log(aPath,"access",res,"access %s",aPath);
+    if (res == -1)
+        return -errno;
+
+    return 0;
+}
+
+
 
 static int loggedFS_readlink(const char *path, char *buf, size_t size)
 {
@@ -207,12 +236,39 @@ static int loggedFS_mknod(const char *path, mode_t mode, dev_t rdev)
     int res;
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
-    res = mknod(path, mode, rdev);
-    loggedfs_log(aPath,"mknod",res,"mknod %s",aPath);
-    if(res == -1)
-        return -errno;
+
+
+    if (S_ISREG(mode)) {
+        res = open(path, O_CREAT | O_EXCL | O_WRONLY, mode);
+	loggedfs_log(aPath,"mknod",res,"mknod %s %o S_IFREG (normal file creation)",aPath, mode);
+        if (res >= 0)
+            res = close(res);
+    } else if (S_ISFIFO(mode))
+	{
+        res = mkfifo(path, mode);
+	loggedfs_log(aPath,"mkfifo",res,"mkfifo %s %o S_IFFIFO (fifo creation)",aPath, mode);
+	}
     else
-        res = lchown(path, fuse_get_context()->uid, fuse_get_context()->gid);
+	{
+        res = mknod(path, mode, rdev);
+	if (S_ISCHR(mode))
+		{
+	        loggedfs_log(aPath,"mknod",res,"mknod %s %o (character device creation)",aPath, mode);
+		}
+	/*else if (S_IFBLK(mode))
+		{
+		loggedfs_log(aPath,"mknod",res,"mknod %s %o (block device creation)",aPath, mode);
+		}*/
+	else loggedfs_log(aPath,"mknod",res,"mknod %s %o",aPath, mode);
+	}
+
+	if (res == -1)
+	        return -errno;
+	else
+		{
+		lchown(path, fuse_get_context()->uid, fuse_get_context()->gid);
+		}
+
     return 0;
 }
 
@@ -222,12 +278,11 @@ static int loggedFS_mkdir(const char *path, mode_t mode)
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
     res = mkdir(path, mode);
-    loggedfs_log(getRelativePath(aPath),"mkdir",res,"mkdir %s",aPath);
+    loggedfs_log(getRelativePath(aPath),"mkdir",res,"mkdir %s %o",aPath, mode);
     if(res == -1)
         return -errno;
     else
-        res = lchown(path, fuse_get_context()->uid, fuse_get_context()->gid);
-
+        lchown(path, fuse_get_context()->uid, fuse_get_context()->gid);
     return 0;
 }
 
@@ -260,17 +315,17 @@ static int loggedFS_rmdir(const char *path)
 static int loggedFS_symlink(const char *from, const char *to)
 {
     int res;
-    char *aFrom=getAbsolutePath(from);
-    char *aTo=getAbsolutePath(to);
-    from=getRelativePath(from);
-    to=getRelativePath(to);
+    
+    char *aTo = getAbsolutePath(to);
+    to = getRelativePath(to);
+    
     res = symlink(from, to);
-    loggedfs_log( aFrom,"symlink",res,"symlink from %s to %s",aFrom,aTo);
+    
+    loggedfs_log( aTo,"symlink",res,"symlink from %s to %s",aTo,from);
     if(res == -1)
         return -errno;
     else
-        res = lchown(from, fuse_get_context()->uid, fuse_get_context()->gid);
-
+        lchown(to, fuse_get_context()->uid, fuse_get_context()->gid);
 
     return 0;
 }
@@ -283,7 +338,7 @@ static int loggedFS_rename(const char *from, const char *to)
     from=getRelativePath(from);
     to=getRelativePath(to);
     res = rename(from, to);
-    loggedfs_log( aFrom,"rename",res,"rename from %s to %s",aFrom,aTo);
+    loggedfs_log( aFrom,"rename",res,"rename %s to %s",aFrom,aTo);
     if(res == -1)
         return -errno;
 
@@ -295,15 +350,16 @@ static int loggedFS_link(const char *from, const char *to)
     int res;
 
     char *aFrom=getAbsolutePath(from);
-    char *aTo=getAbsolutePath(to);
+    char *aTo = getAbsolutePath(to);
     from=getRelativePath(from);
-    to=getRelativePath(to);
+    to = getRelativePath(to);
+    
     res = link(from, to);
-    loggedfs_log( aFrom,"link",res,"link from %s to %s",aFrom,aTo);
+    loggedfs_log( aTo,"link",res,"hard link from %s to %s",aTo,aFrom);
     if(res == -1)
         return -errno;
     else
-        res = lchown(from, fuse_get_context()->uid, fuse_get_context()->gid);
+        lchown(to, fuse_get_context()->uid, fuse_get_context()->gid);
 
     return 0;
 }
@@ -314,11 +370,27 @@ static int loggedFS_chmod(const char *path, mode_t mode)
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
     res = chmod(path, mode);
-    loggedfs_log(aPath,"chmod",res,"chmod %s",aPath);
+    loggedfs_log(aPath,"chmod",res,"chmod %s to %o",aPath, mode);
     if(res == -1)
         return -errno;
 
     return 0;
+}
+
+static char* getusername(uid_t uid)
+{
+struct passwd *p=getpwuid(uid);
+if (p!=NULL)
+	return p->pw_name;
+return NULL;
+}
+
+static char* getgroupname(gid_t gid)
+{
+struct group *g=getgrgid(gid);
+if (g!=NULL)
+	return g->gr_name;
+return NULL;
 }
 
 static int loggedFS_chown(const char *path, uid_t uid, gid_t gid)
@@ -327,7 +399,14 @@ static int loggedFS_chown(const char *path, uid_t uid, gid_t gid)
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
     res = lchown(path, uid, gid);
-    loggedfs_log(aPath,"chown",res,"chown %s",aPath);
+
+    char* username = getusername(uid);
+    char* groupname = getgroupname(gid);
+	
+    if (username!=NULL && groupname!=NULL)
+	    loggedfs_log(aPath,"chown",res,"chown %s to %d:%d %s:%s",aPath, uid, gid, username, groupname);
+    else
+	   loggedfs_log(aPath,"chown",res,"chown %s to %d:%d",aPath, uid, gid);
     if(res == -1)
         return -errno;
 
@@ -341,13 +420,14 @@ static int loggedFS_truncate(const char *path, off_t size)
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
     res = truncate(path, size);
-    loggedfs_log(aPath,"truncate",res,"truncate %s",aPath);
+    loggedfs_log(aPath,"truncate",res,"truncate %s to %d bytes",aPath, size);
     if(res == -1)
         return -errno;
 
     return 0;
 }
 
+#if (FUSE_USE_VERSION==25)
 static int loggedFS_utime(const char *path, struct utimbuf *buf)
 {
     int res;
@@ -360,6 +440,33 @@ static int loggedFS_utime(const char *path, struct utimbuf *buf)
 
     return 0;
 }
+
+#else
+
+
+static int loggedFS_utimens(const char *path, const struct timespec ts[2])
+{
+    int res;
+    struct timeval tv[2];
+
+    char *aPath=getAbsolutePath(path);
+    path=getRelativePath(path);
+
+    tv[0].tv_sec = ts[0].tv_sec;
+    tv[0].tv_usec = ts[0].tv_nsec / 1000;
+    tv[1].tv_sec = ts[1].tv_sec;
+    tv[1].tv_usec = ts[1].tv_nsec / 1000;
+
+    res = utimes(path, tv);
+    
+    loggedfs_log(aPath,"utimens",res,"utimens %s",aPath);
+    if (res == -1)
+        return -errno;
+
+    return 0;
+}
+
+#endif
 
 static int loggedFS_open(const char *path, struct fuse_file_info *fi)
 {
@@ -432,12 +539,12 @@ static int loggedFS_write(const char *path, const char *buf, size_t size,
     return res;
 }
 
-static int loggedFS_statfs(const char *path, struct statfs *stbuf)
+static int loggedFS_statfs(const char *path, struct statvfs *stbuf)
 {
     int res;
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
-    res = statfs(path, stbuf);
+    res = statvfs(path, stbuf);
     loggedfs_log(aPath,"statfs",res,"statfs %s",aPath);
     if(res == -1)
         return -errno;
@@ -533,6 +640,18 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
 
     int res;
 
+    bool got_p = false;
+
+// We need the "nonempty" option to mount the directory in recent FUSE's
+// because it's non empty and contains the files that will be logged.
+//
+// We need "use_ino" so the files will use their original inode numbers,
+// instead of all getting 0xFFFFFFFF . For example, this is required for
+// logging the ~/.kde/share/config directory, in which hard links for lock
+// files are verified by their inode equivalency.
+
+#define COMMON_OPTS "nonempty,use_ino"
+
     while ((res = getopt (argc, argv, "hpfec:l:")) != -1)
     {
         switch (res)
@@ -548,7 +667,8 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
             break;
         case 'p':
             PUSHARG("-o");
-            PUSHARG("allow_other,default_permissions");
+            PUSHARG("allow_other,default_permissions," COMMON_OPTS);
+            got_p = true; 
             rLog(Info,"LoggedFS running as a public filesystem");
             break;
         case 'e':
@@ -572,6 +692,13 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
             break;
         }
     }
+
+    if (!got_p)
+    {
+        PUSHARG("-o");
+        PUSHARG(COMMON_OPTS);
+    }
+#undef COMMON_OPTS
 
     if(optind+1 <= argc)
     {
@@ -628,7 +755,9 @@ int main(int argc, char *argv[])
     // members have been added to fuse_operations, make sure they get set to
     // 0..
     memset(&loggedFS_oper, 0, sizeof(fuse_operations));
+    loggedFS_oper.init		= loggedFS_init;
     loggedFS_oper.getattr	= loggedFS_getattr;
+    loggedFS_oper.access	= loggedFS_access;
     loggedFS_oper.readlink	= loggedFS_readlink;
     loggedFS_oper.readdir	= loggedFS_readdir;
     loggedFS_oper.mknod	= loggedFS_mknod;
@@ -641,7 +770,11 @@ int main(int argc, char *argv[])
     loggedFS_oper.chmod	= loggedFS_chmod;
     loggedFS_oper.chown	= loggedFS_chown;
     loggedFS_oper.truncate	= loggedFS_truncate;
-    loggedFS_oper.utime	= loggedFS_utime;
+#if (FUSE_USE_VERSION==25)
+    loggedFS_oper.utime       = loggedFS_utime;
+#else
+    loggedFS_oper.utimens	= loggedFS_utimens;
+#endif
     loggedFS_oper.open	= loggedFS_open;
     loggedFS_oper.read	= loggedFS_read;
     loggedFS_oper.write	= loggedFS_write;
@@ -699,8 +832,13 @@ int main(int argc, char *argv[])
         chdir(loggedfsArgs->mountPoint);
         savefd = open(".", 0);
 
+#if (FUSE_USE_VERSION==25)
         fuse_main(loggedfsArgs->fuseArgc,
                   const_cast<char**>(loggedfsArgs->fuseArgv), &loggedFS_oper);
+#else
+	 fuse_main(loggedfsArgs->fuseArgc,
+                  const_cast<char**>(loggedfsArgs->fuseArgv), &loggedFS_oper, NULL);
+#endif
         delete stdLog;
         stdLog = NULL;
         if (fileLog!=0)
