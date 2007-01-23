@@ -157,7 +157,7 @@ static int loggedFS_getattr(const char *path, struct stat *stbuf)
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
     res = lstat(path, stbuf);
-    loggedfs_log(aPath,"getattr",res,"getattr %1$s",aPath);
+    loggedfs_log(aPath,"getattr",res,"getattr %s",aPath);
     if(res == -1)
         return -errno;
 

@@ -1,8 +1,8 @@
 /*****************************************************************************
- * Author:   Rémi Flament <remipouak@yahoo.fr>
+ * Author:   RÃ©mi Flament <remipouak@yahoo.fr>
  *
  *****************************************************************************
- * Copyright (c) 2005, Rémi Flament
+ * Copyright (c) 2005, RÃ©mi Flament
  *
  * This library is free software; you can distribute it and/or modify it under
  * the terms of the GNU General Public License (GPL), as published by the Free

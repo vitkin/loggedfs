@@ -1,4 +1,4 @@
-.TH LoggedFS 1 "JANUARY 2006" "User Manuals"
+.TH LoggedFS 1 "JANUARY 2007" "User Manuals"
 .SH NAME
 LoggedFS \- Filesystem monitoring with Fuse
 .SH SYNOPSIS
@@ -22,7 +22,7 @@ to filter what you want to log.
 .IP "-l log-file"
 Use the
 .I log-file
-to write logs to. If no log file is specified then logs are written to syslog or to stdout, depending on -f.
+to write logs to. If no log file is specified then logs are only written to syslog or to stdout, depending on -f.
 .IP -p
 Allow every users to see the new loggedfs. 
 .SH FILES
@@ -31,6 +31,6 @@ Allow every users to see the new loggedfs.
 The system wide configuration file.
 .RE
 .SH AUTHOR
-Remi Flament <remipouak@yahoo.fr>
+Remi Flament <rflament@laposte.net>
 .SH "SEE ALSO"
 .BR fusermount (1)
