@@ -1,7 +1,7 @@
 /*****************************************************************************
  * Author:   Remi Flament <rflament at laposte dot net>
  *****************************************************************************
- * Copyright (c) 2005 - 2007, Remi Flament
+ * Copyright (c) 2005 - 2008, Remi Flament
  *
  * This library is free software; you can distribute it and/or modify it under
  * the terms of the GNU General Public License (GPL), as published by the Free
@@ -20,7 +20,7 @@
 
 #ifdef linux
 /* For pread()/pwrite() */
-#define _XOPEN_SOURCE 500
+#define _X_SOURCE 500
 #endif
 
 #include <fuse.h>
@@ -474,7 +474,19 @@ static int loggedFS_open(const char *path, struct fuse_file_info *fi)
     char *aPath=getAbsolutePath(path);
     path=getRelativePath(path);
     res = open(path, fi->flags);
-    loggedfs_log(aPath,"open",res,"open %s",aPath);
+
+	// what type of open ? read, write, or read-write ?
+	if (fi->flags & O_RDONLY) {
+		 loggedfs_log(aPath,"open-readonly",res,"open readonly %s",aPath);
+	}
+	else if (fi->flags & O_WRONLY) {
+		 loggedfs_log(aPath,"open-writeonly",res,"open writeonly %s",aPath);
+	}
+	else if (fi->flags & O_RDWR) {
+		loggedfs_log(aPath,"open-readwrite",res,"open readwrite %s",aPath);
+	}
+	else  loggedfs_log(aPath,"open",res,"open %s",aPath);
+   
     if(res == -1)
         return -errno;
 
