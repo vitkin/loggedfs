@@ -24,8 +24,7 @@ clean:
 	rm -rf $(builddir)/
 	
 install:
-	gzip loggedfs.1
-	cp loggedfs.1.gz /usr/share/man/man1/
+	gzip -c loggedfs.1 > /usr/share/man/man1/loggedfs.1.gz
 	cp loggedfs /usr/bin/
 	cp loggedfs.xml /etc/
 
@@ -34,5 +33,5 @@ mrproper: clean
 	rm -rf loggedfs
 			
 release:
-	tar -c --exclude="CVS" $(srcdir)/ loggedfs.xml LICENSE loggedfs.1.gz Makefile | bzip2 - > loggedfs.tar.bz2
+	tar -c --exclude="CVS" $(srcdir)/ loggedfs.xml LICENSE loggedfs.1 Makefile | bzip2 - > loggedfs-0.5.tar.bz2
 
