@@ -1,0 +1,98 @@
+LoggedFS-CSV 0.1
+
+Introduction:
+=============
+This is a fork from LoggedFS 0.5 from Rémi Flament <rflament@laposte.net>
+You can find the original project here: http://loggedfs.sourceforge.net/
+See also RLog http://www.arg0.net/rlog for more details on the logging library used for the output.
+
+It monitors all the filesystem actions for a given folder and subfolders.
+
+Modifications:
+==============
+The original project has been modified in order to generate a CSV output for all the actions.
+
+Other modifications:
+- Removal of filename and line number in output.
+- Display of the full command line.
+- Display of the PPID.
+- Separation between STDERR for messages and STDOUT for the CSV.
+
+Usage:
+======
+loggedfs [-h] | [-l log-file] [-c config-file] [-f] [-p] [-e] /directory-mountpoint
+Type 'man loggedfs' for more details
+
+For example:
+# loggedfs -fp -c loggedfs.xml /folder-to-monitor > loggedfs.csv
+
+Configuration:
+==============
+Use an XML file for the following filters:
+
+* extension: specify the file extension to filter based on regular expression.
+
+* uid: specify the UID or * for all.
+
+* action: specify the action to filter based on regular expression.
+
+  The possible actions are:
+  - getattr - Get Attributes
+  - access
+  - readlink - Read Link
+  - readdir - Read Directory
+  - mkfile - Make an inode for a File - S_IFREG (normal file creation)
+  - mkfifo - Make a FIFO - S_IFFIFO (FIFO creation)
+  - mkchar - Make an inode for a character device
+  - mknod - Make an inode
+  - mkdir - Make Directory
+  - unlink - Remove hard link.
+  - rmdir - Remove Directory
+  - symlink - Create Symbolic Link
+  - rename - Rename
+  - link - Create hard link
+  - chmod - Change Mode
+  - chown - Change Owner
+  - truncate
+  - utime - Update Time
+  - utimens - Update Time in Nano Seconds.
+  - open-readonly
+  - open-writeonly
+  - open-readwrite
+  - open
+  - read-request
+  - read
+  - write-request
+  - write
+  - statfs - File System Status
+
+* retname: specify the return name to filter based on regular expression.
+  (Actually the possible return names can be either SUCCESS or FAILURE)
+
+Requirements:
+=============
+Packages required for building the project:
+
+- On RHEL / CentOS / Fedora or equivalent:
+  # yum install libxml2-devel pcre-devel rlog-devel fuse-devel gcc-c++
+
+- On Debian and equivalent:
+  # apt-get install libxml2-dev libpcre3-dev librlog-dev libfuse-dev g++
+
+Installation:
+=============
+# make && make install
+
+Notes:
+======
+- The CSV uses the tabulation ('\t') as the delimiter.
+
+- The header of the CSV is:
+<Time>,Action,Path,Mode,From,To,To UID,To GID,To User Name,To Group Name,Size,Offset,Result,UID,PID,PPID,Command Line
+
+- The "Mode" field is actually the value of the st_mode as described in the man page of lstat.
+
+- If a command line includes new lines or tabulation (like for AWK calls),
+  then they are respectively replaced by "~N~" or "~T~". 
+
+Victor Itkin <victor.itkin@gmail.com>

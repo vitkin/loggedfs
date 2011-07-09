@@ -33,5 +33,5 @@ mrproper: clean
 	rm -rf loggedfs
 			
 release:
-	tar -c --exclude="CVS" $(srcdir)/ loggedfs.xml LICENSE loggedfs.1 Makefile | bzip2 - > loggedfs-0.5.tar.bz2
+	tar -c --exclude="CVS" $(srcdir)/ loggedfs.xml LICENSE loggedfs.1 Makefile README | bzip2 - > loggedfs-csv-0.1.tar.bz2
 

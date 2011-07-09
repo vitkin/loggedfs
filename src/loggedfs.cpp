@@ -15,8 +15,14 @@
  *
  */
 
-/* Almost the whole code has been recopied from encfs source code and from fusexmp.c
-*/
+/*****************************************************************************
+ * Modifications: Victor Itkin <victor.itkin@gmail.com>
+ *****************************************************************************
+ */
+
+/* Almost the whole code has been recopied from encfs source code and from 
+ * fusexmp.c
+ */
 
 #ifdef linux
 /* For pread()/pwrite() */
@@ -53,276 +59,517 @@ out->fuseArgv[out->fuseArgc++] = ARG
 using namespace std;
 using namespace rlog;
 
+static RLogChannel* outChannel = DEF_CHANNEL("out", Log_Info);
+static RLogChannel* errChannel = DEF_CHANNEL("err", Log_Info);
 
-static RLogChannel *Info = DEF_CHANNEL("info", Log_Info);
 static Config config;
 static int savefd;
-static int fileLog=0;
-static StdioNode* fileLogNode=NULL;
+static int fileLog = 0;
+static StdioNode* fileLogNode = NULL;
 
 const int MaxFuseArgs = 32;
+
+/* I've added all the following constants for the formatting of the rows in 
+ * vision of later externalizing them in the XML configuration.
+ * There may be a better way but I don't have time for now.
+ */ 
+
+const string DelimStr = "\t";
+const char* Delim = DelimStr.data();
+
+const string RowSuffixStr = DelimStr + "%s" + DelimStr + "%d" + DelimStr +
+        "%d" + DelimStr + "%s" + DelimStr + "%s";
+
+const char* RowSuffix = RowSuffixStr.data();
+
+const string HeaderStr = DelimStr + "Action" + DelimStr + "Path" + DelimStr +
+        "Mode" + DelimStr + "From" + DelimStr + "To" + DelimStr + "To UID" +
+        DelimStr + "To GID" + DelimStr + "To User Name" + DelimStr +
+        "To Group Name" + DelimStr + "Size" + DelimStr + "Offset" + DelimStr +
+        "Result" + DelimStr + "UID" + DelimStr + "PID" + DelimStr + "PPID" +
+        DelimStr + "Command Line";
+
+const char* Header = HeaderStr.data();
+
+const string RowPattern1 = DelimStr + "%s" + DelimStr + DelimStr + DelimStr +
+        DelimStr + DelimStr + DelimStr + DelimStr + DelimStr + DelimStr;
+
+const string RowPattern2 = DelimStr + "%s" + DelimStr + "%o" + DelimStr +
+        DelimStr + DelimStr + DelimStr + DelimStr + DelimStr + DelimStr +
+        DelimStr;
+
+const string RowPattern3 = DelimStr + "%s" + DelimStr + DelimStr + "%s" +
+        DelimStr + DelimStr + DelimStr + DelimStr + DelimStr + DelimStr +
+        DelimStr;
+
+const string RowPattern4 = DelimStr + "%s" + DelimStr + DelimStr + DelimStr +
+        DelimStr + DelimStr + DelimStr + DelimStr + DelimStr + "%d" + DelimStr +
+        "%d";
+
+const string GetAttrRowStr = DelimStr + "getattr" + RowPattern1;
+const char* GetAttrRow = GetAttrRowStr.data();
+
+const string AccessRowStr = DelimStr + "access" + RowPattern1;
+const char* AccessRow = AccessRowStr.data();
+
+const string ReadLinkRowStr = DelimStr + "readlink" + RowPattern1;
+const char* ReadLinkRow = ReadLinkRowStr.data();
+
+const string ReadDirRowStr = DelimStr + "readdir" + RowPattern1;
+const char* ReadDirRow = ReadDirRowStr.data();
+
+const string MkFileRowStr = DelimStr + "mkfile" + RowPattern2;
+const char* MkFileRow = MkFileRowStr.data();
+
+const string MkFifoRowStr = DelimStr + "mkfifo" + RowPattern2;
+const char* MkFifoRow = MkFifoRowStr.data();
+
+const string MkCharRowStr = DelimStr + "mkchar" + RowPattern2;
+const char* MkCharRow = MkCharRowStr.data();
+
+const string MkNodeRowStr = DelimStr + "mknod" + RowPattern2;
+const char* MkNodeRow = MkNodeRowStr.data();
+
+const string MkDirRowStr = DelimStr + "mkdir" + RowPattern2;
+const char* MkDirRow = MkDirRowStr.data();
+
+const string UnlinkRowStr = DelimStr + "unlink" + RowPattern1;
+const char* UnlinkRow = UnlinkRowStr.data();
+
+const string RmDirRowStr = DelimStr + "rmdir" + RowPattern1;
+const char* RmDirRow = RmDirRowStr.data();
+
+const string SymLinkRowStr = DelimStr + "symlink" + RowPattern3;
+const char* SymLinkRow = SymLinkRowStr.data();
+
+const string RenameRowStr = DelimStr + "rename" + DelimStr + "%s" + DelimStr +
+        DelimStr + DelimStr + "%s" + DelimStr + DelimStr + DelimStr + DelimStr +
+        DelimStr + DelimStr;
+
+const char* RenameRow = RenameRowStr.data();
+
+const string LinkRowStr = DelimStr + "link" + DelimStr + DelimStr + "%s" +
+        DelimStr + DelimStr + DelimStr + "%s" + DelimStr + DelimStr + DelimStr +
+        DelimStr + DelimStr;
+
+const char* LinkRow = LinkRowStr.data();
+
+const string ChModRowStr = DelimStr + "chmod" + RowPattern2;
+const char* ChModRow = ChModRowStr.data();
+
+const string ChOwnWithNamesRowStr = DelimStr + "chown" + DelimStr + "%s" +
+        DelimStr + DelimStr + DelimStr + DelimStr + "%d" + DelimStr + "%d" +
+        DelimStr + "%s" + DelimStr + "%s" + DelimStr + DelimStr;
+
+const char* ChOwnWithNamesRow = ChOwnWithNamesRowStr.data();
+
+const string ChOwnRowStr = DelimStr + "chown" + DelimStr + "%s" + DelimStr +
+        DelimStr + DelimStr + DelimStr + "%d" + DelimStr + "%d" + DelimStr +
+        DelimStr + DelimStr + DelimStr;
+
+const char* ChOwnRow = ChOwnRowStr.data();
+
+const string TruncateRowStr = DelimStr + "truncate" + DelimStr + "%s" +
+        DelimStr + DelimStr + DelimStr + DelimStr + DelimStr + DelimStr +
+        DelimStr + DelimStr + "%d" + DelimStr;
+
+const char* TruncateRow = TruncateRowStr.data();
+
+const string UTimeRowStr = DelimStr + "utime" + RowPattern1;
+const char* UTimeRow = UTimeRowStr.data();
+
+const string UTimeNsRowStr = DelimStr + "utimens" + RowPattern1;
+const char* UTimeNsRow = UTimeNsRowStr.data();
+
+const string OpenReadOnlyRowStr = DelimStr + "open-readonly" + RowPattern1;
+const char* OpenReadOnlyRow = OpenReadOnlyRowStr.data();
+
+const string OpenWriteOnlyRowStr = DelimStr + "open-writeonly" + RowPattern1;
+const char* OpenWriteOnlyRow = OpenWriteOnlyRowStr.data();
+
+const string OpenReadWriteRowStr = DelimStr + "open-readwrite" + RowPattern1;
+const char* OpenReadWriteRow = OpenReadWriteRowStr.data();
+
+const string OpenRowStr = DelimStr + "open" + RowPattern1;
+const char* OpenRow = OpenRowStr.data();
+
+const string ReadRequestRowStr = DelimStr + "read-request" + RowPattern4;
+const char* ReadRequestRow = ReadRequestRowStr.data();
+
+const string ReadRowStr = DelimStr + "read" + RowPattern4;
+const char* ReadRow = ReadRowStr.data();
+
+const string WriteRequestRowStr = DelimStr + "write-request" + RowPattern4;
+const char* WriteRequestRow = WriteRequestRowStr.data();
+
+const string WriteRowStr = DelimStr + "write" + RowPattern4;
+const char* WriteRow = WriteRowStr.data();
+
+const string StatFsRowStr = DelimStr + "statfs" + RowPattern1;
+const char* StatFsRow = StatFsRowStr.data();
+
 struct LoggedFS_Args
 {
     char* mountPoint; // where the users read files
     char* configFilename;
     bool isDaemon; // true == spawn in background, log to syslog
-    const char *fuseArgv[MaxFuseArgs];
+    const char* fuseArgv[MaxFuseArgs];
     int fuseArgc;
 };
 
-
-static LoggedFS_Args *loggedfsArgs = new LoggedFS_Args;
-
-
-static bool isAbsolutePath( const char *fileName )
+/* Added the struct as a comment in case if needed for later
+ 
+struct Fields
 {
-    if(fileName && fileName[0] != '\0' && fileName[0] == '/')
+    char* action;
+    char* path;
+    mode_t mode;
+    char* from;
+    char* to;
+    uid_t toUid;
+    gid_t toGid;
+    char* toUserName;
+    char* toGroupName;
+    size_t size;
+    off_t offset;
+    char* result;
+    pid_t pid;
+    char* ppid;
+    char* commandLine;
+    uid_t uid;
+};*/
+
+static LoggedFS_Args* loggedfsArgs = new LoggedFS_Args;
+
+static bool isAbsolutePath(const char* fileName)
+{
+    if (fileName && fileName[0] != '\0' && fileName[0] == '/')
         return true;
     else
         return false;
 }
 
-
 static char* getAbsolutePath(const char *path)
 {
-    char *realPath=new char[strlen(path)+strlen(loggedfsArgs->mountPoint)+1];
+    char* realPath =
+            new char[strlen(path) + strlen(loggedfsArgs->mountPoint) + 1];
 
-    strcpy(realPath,loggedfsArgs->mountPoint);
-    if (realPath[strlen(realPath)-1]=='/')
-        realPath[strlen(realPath)-1]='\0';
-    strcat(realPath,path);
+    strcpy(realPath, loggedfsArgs->mountPoint);
+
+    if (realPath[strlen(realPath) - 1] == '/')
+        realPath[strlen(realPath) - 1] = '\0';
+
+    strcat(realPath, path);
+
     return realPath;
-
 }
 
 static char* getRelativePath(const char* path)
 {
-    char* rPath=new char[strlen(path)+2];
+    char* rPath = new char[strlen(path) + 2];
 
-    strcpy(rPath,".");
-    strcat(rPath,path);
-
+    strcpy(rPath, ".");
+    strcat(rPath, path);
     return rPath;
 }
 
 /*
- * Returns the name of the process which accessed the file system.
+ * Returns the command line of the process which accessed the file system.
  */
-static char* getcallername()
+static char* getcallercmdline()
 {
     char filename[100];
-    sprintf(filename,"/proc/%d/cmdline",fuse_get_context()->pid);
-    FILE * proc=fopen(filename,"rt");
-    char cmdline[256]="";
-    fread(cmdline,sizeof(cmdline),1,proc);
-    fclose(proc);
-    return strdup(cmdline);
+    sprintf(filename, "/proc/%d/cmdline", fuse_get_context()->pid);
+    FILE* cmdline = fopen(filename, "rb");
+
+    char* arg = 0;
+    size_t size = 0;
+    string commandLine = "";
+
+    while (getdelim(&arg, &size, 0, cmdline) != -1)
+    {
+        char* str1, * str2, * token, * subtoken;
+        char* saveptr1, * saveptr2;
+        int j;
+
+        for (j = 1, str1 = arg;; j++, str1 = NULL)
+        {
+            token = strtok_r(str1, "\n", &saveptr1);
+
+            if (token == NULL)
+                break;
+
+            if (str1 == NULL)
+                commandLine.append("~N~");
+
+            for (str2 = token;; str2 = NULL)
+            {
+                subtoken = strtok_r(str2, Delim, &saveptr2);
+
+                if (subtoken == NULL)
+                    break;
+
+                if (str2 == NULL)
+                    commandLine.append("~T~");
+
+                commandLine.append(subtoken);
+            }
+        }
+
+        commandLine.append(" ");
+    }
+
+    free(arg);
+    fclose(cmdline);
+    return strdup(commandLine.data());
 }
 
-static void loggedfs_log(const char* path,const char* action,const int returncode,const char *format,...)
+/*
+ * Returns the PPID of the process which accessed the file system.
+ */
+static char* getcallerppid()
 {
-    char *retname;
+    char filename[100];
+    sprintf(filename, "/proc/%d/stat", fuse_get_context()->pid);
+    FILE* stat = fopen(filename, "rt");
+
+    char buf[256] = "";
+    fread(buf, sizeof (buf), 1, stat);
+
+    char* token, * saveptr;
+    strtok_r(buf, " ", &saveptr);
+    strtok_r(NULL, " ", &saveptr);
+    strtok_r(NULL, " ", &saveptr);
+    token = strtok_r(NULL, " ", &saveptr);
+
+    fclose(stat);
+    return strdup(token);
+}
+
+static void loggedfs_log(const char* path, const char* action,
+                         const int returncode, const char* format, ...)
+{
+    char* retname;
+
     if (returncode >= 0)
         retname = "SUCCESS";
     else
         retname = "FAILURE";
-    if (config.shouldLog(path,fuse_get_context()->uid,action,retname))
+
+    if (config.shouldLog(path, fuse_get_context()->uid, action, retname))
     {
         va_list args;
         char buf[1024];
-        va_start(args,format);
-        memset(buf,0,1024);
-        vsprintf(buf,format,args);
-        strcat(buf," {%s} [ pid = %d %s uid = %d ]");
-        if (returncode >= 0)
-		rLog(Info, buf,retname, fuse_get_context()->pid,config.isPrintProcessNameEnabled()?getcallername():"", fuse_get_context()->uid);
-	else
-		rError( buf,retname, fuse_get_context()->pid,config.isPrintProcessNameEnabled()?getcallername():"", fuse_get_context()->uid);
+        va_start(args, format);
+        memset(buf, 0, 1024);
+        vsprintf(buf, format, args);
+        strcat(buf, RowSuffixStr.data());
+        bool pNameEnabled = config.isPrintProcessNameEnabled();
+
+        rLog(outChannel, buf, retname,
+             fuse_get_context()->uid,
+             fuse_get_context()->pid,
+             pNameEnabled ? getcallerppid() : "",
+             pNameEnabled ? getcallercmdline() : "");
+
         va_end(args);
     }
 }
 
 static void* loggedFS_init(struct fuse_conn_info* info)
 {
-     fchdir(savefd);
-     close(savefd);
-     return NULL;
+    fchdir(savefd);
+    close(savefd);
+    return NULL;
 }
 
-
-static int loggedFS_getattr(const char *path, struct stat *stbuf)
+static int loggedFS_getattr(const char* path, struct stat* stbuf)
 {
     int res;
 
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     res = lstat(path, stbuf);
-    loggedfs_log(aPath,"getattr",res,"getattr %s",aPath);
-    if(res == -1)
-        return -errno;
+    loggedfs_log(aPath, "getattr", res, GetAttrRow, aPath);
 
-    return 0;
-}
-
-
-static int loggedFS_access(const char *path, int mask)
-{
-    int res;
-
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
-    res = access(path, mask);
-    loggedfs_log(aPath,"access",res,"access %s",aPath);
     if (res == -1)
         return -errno;
 
     return 0;
 }
 
-
-
-static int loggedFS_readlink(const char *path, char *buf, size_t size)
+static int loggedFS_access(const char *path, int mask)
 {
     int res;
 
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
+    res = access(path, mask);
+    loggedfs_log(aPath, "access", res, AccessRow, aPath);
+
+    if (res == -1)
+        return -errno;
+
+    return 0;
+}
+
+static int loggedFS_readlink(const char* path, char* buf, size_t size)
+{
+    int res;
+
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     res = readlink(path, buf, size - 1);
-    loggedfs_log(aPath,"readlink",res,"readlink %s",aPath);
-    if(res == -1)
+    loggedfs_log(aPath, "readlink", res, ReadLinkRow, aPath);
+
+    if (res == -1)
         return -errno;
 
     buf[res] = '\0';
     return 0;
 }
 
-static int loggedFS_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-                            off_t offset, struct fuse_file_info *fi)
+static int loggedFS_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
+                            off_t offset, struct fuse_file_info* fi)
 {
-    DIR *dp;
-    struct dirent *de;
+    DIR* dp;
+    struct dirent* de;
     int res;
 
     (void) offset;
     (void) fi;
 
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
 
 
     dp = opendir(path);
-    if(dp == NULL) {
+
+    if (dp == NULL)
+    {
         res = -errno;
-        loggedfs_log(aPath,"readdir",-1,"readdir %s",aPath);
+        loggedfs_log(aPath, "readdir", -1, ReadDirRow, aPath);
         return res;
     }
 
-    while((de = readdir(dp)) != NULL) {
+    while ((de = readdir(dp)) != NULL)
+    {
         struct stat st;
-        memset(&st, 0, sizeof(st));
+        memset(&st, 0, sizeof (st));
         st.st_ino = de->d_ino;
         st.st_mode = de->d_type << 12;
+
         if (filler(buf, de->d_name, &st, 0))
             break;
     }
 
     closedir(dp);
-    loggedfs_log(aPath,"readdir",0,"readdir %s",aPath);
+    loggedfs_log(aPath, "readdir", 0, ReadDirRow, aPath);
     return 0;
 }
 
-static int loggedFS_mknod(const char *path, mode_t mode, dev_t rdev)
+static int loggedFS_mknod(const char* path, mode_t mode, dev_t rdev)
 {
     int res;
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
 
-
-    if (S_ISREG(mode)) {
+    if (S_ISREG(mode))
+    {
         res = open(path, O_CREAT | O_EXCL | O_WRONLY, mode);
-	loggedfs_log(aPath,"mknod",res,"mknod %s %o S_IFREG (normal file creation)",aPath, mode);
+        loggedfs_log(aPath, "mkfile", res, MkFileRow, aPath, mode);
+
         if (res >= 0)
             res = close(res);
-    } else if (S_ISFIFO(mode))
-	{
+    }
+    else if (S_ISFIFO(mode))
+    {
         res = mkfifo(path, mode);
-	loggedfs_log(aPath,"mkfifo",res,"mkfifo %s %o S_IFFIFO (fifo creation)",aPath, mode);
-	}
+        loggedfs_log(aPath, "mkfifo", res, MkFifoRow, aPath, mode);
+    }
     else
-	{
+    {
         res = mknod(path, mode, rdev);
-	if (S_ISCHR(mode))
-		{
-	        loggedfs_log(aPath,"mknod",res,"mknod %s %o (character device creation)",aPath, mode);
-		}
-	/*else if (S_IFBLK(mode))
-		{
-		loggedfs_log(aPath,"mknod",res,"mknod %s %o (block device creation)",aPath, mode);
-		}*/
-	else loggedfs_log(aPath,"mknod",res,"mknod %s %o",aPath, mode);
-	}
 
-	if (res == -1)
-	        return -errno;
-	else
-		{
-		lchown(path, fuse_get_context()->uid, fuse_get_context()->gid);
-		}
+        if (S_ISCHR(mode))
+        {
+            loggedfs_log(aPath, "mkchar", res, MkCharRow, aPath, mode);
+        }
+            /*else if (S_IFBLK(mode))
+            {
+                loggedfs_log(aPath, "mkblk", res,
+                             "mkblk %s %o (block device creation)", aPath, mode);
+            }*/
+        else
+            loggedfs_log(aPath, "mknod", res, MkNodeRow, aPath, mode);
+    }
+
+    if (res == -1)
+        return -errno;
+    else
+    {
+        lchown(path, fuse_get_context()->uid, fuse_get_context()->gid);
+    }
 
     return 0;
 }
 
-static int loggedFS_mkdir(const char *path, mode_t mode)
+static int loggedFS_mkdir(const char* path, mode_t mode)
 {
     int res;
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     res = mkdir(path, mode);
-    loggedfs_log(getRelativePath(aPath),"mkdir",res,"mkdir %s %o",aPath, mode);
-    if(res == -1)
+    loggedfs_log(getRelativePath(aPath), "mkdir", res, MkDirRow, aPath, mode);
+
+    if (res == -1)
         return -errno;
     else
         lchown(path, fuse_get_context()->uid, fuse_get_context()->gid);
+
     return 0;
 }
 
-static int loggedFS_unlink(const char *path)
+static int loggedFS_unlink(const char* path)
 {
     int res;
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     res = unlink(path);
-    loggedfs_log(aPath,"unlink",res,"unlink %s",aPath);
-    if(res == -1)
+    loggedfs_log(aPath, "unlink", res, UnlinkRow, aPath);
+
+    if (res == -1)
         return -errno;
 
     return 0;
 }
 
-static int loggedFS_rmdir(const char *path)
+static int loggedFS_rmdir(const char* path)
 {
     int res;
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     res = rmdir(path);
-    loggedfs_log(aPath,"rmdir",res,"rmdir %s",aPath);
-    if(res == -1)
+    loggedfs_log(aPath, "rmdir", res, RmDirRow, aPath);
+
+    if (res == -1)
         return -errno;
 
     return 0;
 }
 
-static int loggedFS_symlink(const char *from, const char *to)
+static int loggedFS_symlink(const char* from, const char* to)
 {
     int res;
-    
-    char *aTo = getAbsolutePath(to);
+
+    char* aTo = getAbsolutePath(to);
     to = getRelativePath(to);
-    
+
     res = symlink(from, to);
-    
-    loggedfs_log( aTo,"symlink",res,"symlink from %s to %s",aTo,from);
-    if(res == -1)
+
+    loggedfs_log(aTo, "symlink", res, SymLinkRow, aTo, from);
+
+    if (res == -1)
         return -errno;
     else
         lchown(to, fuse_get_context()->uid, fuse_get_context()->gid);
@@ -330,33 +577,35 @@ static int loggedFS_symlink(const char *from, const char *to)
     return 0;
 }
 
-static int loggedFS_rename(const char *from, const char *to)
+static int loggedFS_rename(const char* from, const char* to)
 {
     int res;
-    char *aFrom=getAbsolutePath(from);
-    char *aTo=getAbsolutePath(to);
-    from=getRelativePath(from);
-    to=getRelativePath(to);
-    res = rename(from, to);
-    loggedfs_log( aFrom,"rename",res,"rename %s to %s",aFrom,aTo);
-    if(res == -1)
-        return -errno;
-
-    return 0;
-}
-
-static int loggedFS_link(const char *from, const char *to)
-{
-    int res;
-
-    char *aFrom=getAbsolutePath(from);
-    char *aTo = getAbsolutePath(to);
-    from=getRelativePath(from);
+    char* aFrom = getAbsolutePath(from);
+    char* aTo = getAbsolutePath(to);
+    from = getRelativePath(from);
     to = getRelativePath(to);
-    
+    res = rename(from, to);
+    loggedfs_log(aFrom, "rename", res, RenameRow, aFrom, aTo);
+
+    if (res == -1)
+        return -errno;
+
+    return 0;
+}
+
+static int loggedFS_link(const char* from, const char* to)
+{
+    int res;
+
+    char* aFrom = getAbsolutePath(from);
+    char* aTo = getAbsolutePath(to);
+    from = getRelativePath(from);
+    to = getRelativePath(to);
+
     res = link(from, to);
-    loggedfs_log( aTo,"link",res,"hard link from %s to %s",aTo,aFrom);
-    if(res == -1)
+    loggedfs_log(aTo, "link", res, LinkRow, aTo, aFrom);
+
+    if (res == -1)
         return -errno;
     else
         lchown(to, fuse_get_context()->uid, fuse_get_context()->gid);
@@ -364,14 +613,15 @@ static int loggedFS_link(const char *from, const char *to)
     return 0;
 }
 
-static int loggedFS_chmod(const char *path, mode_t mode)
+static int loggedFS_chmod(const char* path, mode_t mode)
 {
     int res;
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     res = chmod(path, mode);
-    loggedfs_log(aPath,"chmod",res,"chmod %s to %o",aPath, mode);
-    if(res == -1)
+    loggedfs_log(aPath, "chmod", res, ChModRow, aPath, mode);
+
+    if (res == -1)
         return -errno;
 
     return 0;
@@ -379,63 +629,70 @@ static int loggedFS_chmod(const char *path, mode_t mode)
 
 static char* getusername(uid_t uid)
 {
-struct passwd *p=getpwuid(uid);
-if (p!=NULL)
-	return p->pw_name;
-return NULL;
+    struct passwd* p = getpwuid(uid);
+
+    if (p != NULL)
+        return p->pw_name;
+
+    return NULL;
 }
 
 static char* getgroupname(gid_t gid)
 {
-struct group *g=getgrgid(gid);
-if (g!=NULL)
-	return g->gr_name;
-return NULL;
+    struct group* g = getgrgid(gid);
+
+    if (g != NULL)
+        return g->gr_name;
+
+    return NULL;
 }
 
-static int loggedFS_chown(const char *path, uid_t uid, gid_t gid)
+static int loggedFS_chown(const char* path, uid_t uid, gid_t gid)
 {
     int res;
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     res = lchown(path, uid, gid);
 
     char* username = getusername(uid);
     char* groupname = getgroupname(gid);
-	
-    if (username!=NULL && groupname!=NULL)
-	    loggedfs_log(aPath,"chown",res,"chown %s to %d:%d %s:%s",aPath, uid, gid, username, groupname);
+
+    if (username != NULL && groupname != NULL)
+        loggedfs_log(aPath, "chown", res, ChOwnWithNamesRow, aPath, uid, gid,
+                     username, groupname);
     else
-	   loggedfs_log(aPath,"chown",res,"chown %s to %d:%d",aPath, uid, gid);
-    if(res == -1)
+        loggedfs_log(aPath, "chown", res, ChOwnRow, aPath, uid, gid);
+    if (res == -1)
         return -errno;
 
     return 0;
 }
 
-static int loggedFS_truncate(const char *path, off_t size)
+static int loggedFS_truncate(const char* path, off_t size)
 {
     int res;
 
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     res = truncate(path, size);
-    loggedfs_log(aPath,"truncate",res,"truncate %s to %d bytes",aPath, size);
-    if(res == -1)
+    loggedfs_log(aPath, "truncate", res, TruncateRow, aPath, size);
+
+    if (res == -1)
         return -errno;
 
     return 0;
 }
 
 #if (FUSE_USE_VERSION==25)
+
 static int loggedFS_utime(const char *path, struct utimbuf *buf)
 {
     int res;
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     res = utime(path, buf);
-    loggedfs_log(aPath,"utime",res,"utime %s",aPath);
-    if(res == -1)
+    loggedfs_log(aPath, "utime", res, UTimeRow, aPath);
+    if (res == -1)
         return -errno;
 
     return 0;
@@ -443,14 +700,13 @@ static int loggedFS_utime(const char *path, struct utimbuf *buf)
 
 #else
 
-
-static int loggedFS_utimens(const char *path, const struct timespec ts[2])
+static int loggedFS_utimens(const char* path, const struct timespec ts[2])
 {
     int res;
     struct timeval tv[2];
 
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char *aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
 
     tv[0].tv_sec = ts[0].tv_sec;
     tv[0].tv_usec = ts[0].tv_nsec / 1000;
@@ -458,8 +714,8 @@ static int loggedFS_utimens(const char *path, const struct timespec ts[2])
     tv[1].tv_usec = ts[1].tv_nsec / 1000;
 
     res = utimes(path, tv);
-    
-    loggedfs_log(aPath,"utimens",res,"utimens %s",aPath);
+
+    loggedfs_log(aPath, "utimens", res, UTimeNsRow, aPath);
     if (res == -1)
         return -errno;
 
@@ -468,103 +724,122 @@ static int loggedFS_utimens(const char *path, const struct timespec ts[2])
 
 #endif
 
-static int loggedFS_open(const char *path, struct fuse_file_info *fi)
+static int loggedFS_open(const char* path, struct fuse_file_info* fi)
 {
     int res;
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     res = open(path, fi->flags);
 
-	// what type of open ? read, write, or read-write ?
-	if (fi->flags & O_RDONLY) {
-		 loggedfs_log(aPath,"open-readonly",res,"open readonly %s",aPath);
-	}
-	else if (fi->flags & O_WRONLY) {
-		 loggedfs_log(aPath,"open-writeonly",res,"open writeonly %s",aPath);
-	}
-	else if (fi->flags & O_RDWR) {
-		loggedfs_log(aPath,"open-readwrite",res,"open readwrite %s",aPath);
-	}
-	else  loggedfs_log(aPath,"open",res,"open %s",aPath);
-   
-    if(res == -1)
+    // what type of open ? read, write, or read-write ?
+    if (fi->flags & O_RDONLY)
+    {
+        loggedfs_log(aPath, "open-readonly", res, OpenReadOnlyRow, aPath);
+    }
+    else if (fi->flags & O_WRONLY)
+    {
+        loggedfs_log(aPath, "open-writeonly", res, OpenWriteOnlyRow, aPath);
+    }
+    else if (fi->flags & O_RDWR)
+    {
+        loggedfs_log(aPath, "open-readwrite", res, OpenReadWriteRow, aPath);
+    }
+    else loggedfs_log(aPath, "open", res, OpenRow, aPath);
+
+    if (res == -1)
         return -errno;
 
     close(res);
     return 0;
 }
 
-static int loggedFS_read(const char *path, char *buf, size_t size, off_t offset,
-                         struct fuse_file_info *fi)
+static int loggedFS_read(const char* path, char* buf, size_t size, off_t offset,
+                         struct fuse_file_info* fi)
 {
     int fd;
     int res;
 
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     (void) fi;
 
     fd = open(path, O_RDONLY);
-    if(fd == -1) {
+    if (fd == -1)
+    {
         res = -errno;
-        loggedfs_log(aPath,"read",-1,"read %d bytes from %s at offset %d",size,aPath,offset);
+        loggedfs_log(aPath, "read-request", -1, ReadRequestRow, aPath, size,
+                     offset);
+
         return res;
-    } else {
-        loggedfs_log(aPath,"read",0,"read %d bytes from %s at offset %d",size,aPath,offset);
+    }
+    else
+    {
+        loggedfs_log(aPath, "read-request", 0, ReadRequestRow, aPath, size,
+                     offset);
     }
 
     res = pread(fd, buf, size, offset);
 
-    if(res == -1)
+    if (res == -1)
         res = -errno;
-    else loggedfs_log(aPath,"read",0, "%d bytes read from %s at offset %d",res,aPath,offset);
+    else
+        loggedfs_log(aPath, "read", 0, ReadRow, aPath, res, offset);
 
     close(fd);
     return res;
 }
 
-static int loggedFS_write(const char *path, const char *buf, size_t size,
-                          off_t offset, struct fuse_file_info *fi)
+static int loggedFS_write(const char* path, const char* buf, size_t size,
+                          off_t offset, struct fuse_file_info* fi)
 {
     int fd;
     int res;
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     (void) fi;
 
     fd = open(path, O_WRONLY);
-    if(fd == -1) {
+
+    if (fd == -1)
+    {
         res = -errno;
-        loggedfs_log(aPath,"write",-1,"write %d bytes to %s at offset %d",size,aPath,offset);
+        loggedfs_log(aPath, "write-request", -1, WriteRequestRow, aPath, size,
+                     offset);
+
         return res;
-    } else {
-        loggedfs_log(aPath,"write",0,"write %d bytes to %s at offset %d",size,aPath,offset);
+    }
+    else
+    {
+        loggedfs_log(aPath, "write-request", 0, WriteRequestRow, aPath, size,
+                     offset);
     }
 
     res = pwrite(fd, buf, size, offset);
 
-    if(res == -1)
+    if (res == -1)
         res = -errno;
-    else loggedfs_log(aPath,"write",0, "%d bytes written to %s at offset %d",res,aPath,offset);
+    else
+        loggedfs_log(aPath, "write", 0, WriteRow, aPath, res, offset);
 
     close(fd);
     return res;
 }
 
-static int loggedFS_statfs(const char *path, struct statvfs *stbuf)
+static int loggedFS_statfs(const char* path, struct statvfs* stbuf)
 {
     int res;
-    char *aPath=getAbsolutePath(path);
-    path=getRelativePath(path);
+    char* aPath = getAbsolutePath(path);
+    path = getRelativePath(path);
     res = statvfs(path, stbuf);
-    loggedfs_log(aPath,"statfs",res,"statfs %s",aPath);
-    if(res == -1)
+    loggedfs_log(aPath, "statfs", res, StatFsRow, aPath);
+
+    if (res == -1)
         return -errno;
 
     return 0;
 }
 
-static int loggedFS_release(const char *path, struct fuse_file_info *fi)
+static int loggedFS_release(const char* path, struct fuse_file_info* fi)
 {
     /* Just a stub.  This method is optional and can safely be left
        unimplemented */
@@ -574,8 +849,8 @@ static int loggedFS_release(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
-static int loggedFS_fsync(const char *path, int isdatasync,
-                          struct fuse_file_info *fi)
+static int loggedFS_fsync(const char* path, int isdatasync,
+                          struct fuse_file_info* fi)
 {
     /* Just a stub.  This method is optional and can safely be left
        unimplemented */
@@ -587,58 +862,69 @@ static int loggedFS_fsync(const char *path, int isdatasync,
 }
 
 #ifdef HAVE_SETXATTR
+
 /* xattr operations are optional and can safely be left unimplemented */
-static int loggedFS_setxattr(const char *path, const char *name, const char *value,
-                             size_t size, int flags)
+static int loggedFS_setxattr(const char* path, const char* name, const
+                             char* value, size_t size, int flags)
 {
     int res = lsetxattr(path, name, value, size, flags);
-    if(res == -1)
+
+    if (res == -1)
         return -errno;
+
     return 0;
 }
 
-static int loggedFS_getxattr(const char *path, const char *name, char *value,
+static int loggedFS_getxattr(const char* path, const char* name, char* value,
                              size_t size)
 {
     int res = lgetxattr(path, name, value, size);
-    if(res == -1)
+
+    if (res == -1)
         return -errno;
+
     return res;
 }
 
-static int loggedFS_listxattr(const char *path, char *list, size_t size)
+static int loggedFS_listxattr(const char* path, char* list, size_t size)
 {
     int res = llistxattr(path, list, size);
-    if(res == -1)
+
+    if (res == -1)
         return -errno;
+
     return res;
 }
 
-static int loggedFS_removexattr(const char *path, const char *name)
+static int loggedFS_removexattr(const char* path, const char* name)
 {
     int res = lremovexattr(path, name);
-    if(res == -1)
+
+    if (res == -1)
         return -errno;
+
     return 0;
 }
 #endif /* HAVE_SETXATTR */
 
-static void usage(char *name)
+static void usage(char* name)
 {
-     fprintf(stderr, "Usage:\n");
-     fprintf(stderr, "%s [-h] | [-l log-file] [-c config-file] [-f] [-p] [-e] /directory-mountpoint\n",name);
-     fprintf(stderr, "Type 'man loggedfs' for more details\n");
-     return;
+    fprintf(stderr, "Usage:\n");
+    fprintf(stderr,
+            "%s [-h] | [-l log-file] [-c config-file] [-f] [-p] [-e] /directory-mountpoint\n",
+            name);
+
+    fprintf(stderr, "Type 'man loggedfs' for more details\n");
+    return;
 }
 
-static
-bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
+static bool processArgs(int argc, char* argv[], LoggedFS_Args* out)
 {
     // set defaults
     out->isDaemon = true;
 
     out->fuseArgc = 0;
-    out->configFilename=NULL;
+    out->configFilename = NULL;
 
     // pass executable name through
     out->fuseArgv[0] = argv[0];
@@ -654,53 +940,57 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
 
     bool got_p = false;
 
-// We need the "nonempty" option to mount the directory in recent FUSE's
-// because it's non empty and contains the files that will be logged.
-//
-// We need "use_ino" so the files will use their original inode numbers,
-// instead of all getting 0xFFFFFFFF . For example, this is required for
-// logging the ~/.kde/share/config directory, in which hard links for lock
-// files are verified by their inode equivalency.
+    // We need the "nonempty" option to mount the directory in recent FUSE's
+    // because it's non empty and contains the files that will be logged.
+    //
+    // We need "use_ino" so the files will use their original inode numbers,
+    // instead of all getting 0xFFFFFFFF . For example, this is required for
+    // logging the ~/.kde/share/config directory, in which hard links for lock
+    // files are verified by their inode equivalency.
 
 #define COMMON_OPTS "nonempty,use_ino"
 
-    while ((res = getopt (argc, argv, "hpfec:l:")) != -1)
+    while ((res = getopt(argc, argv, "hpfec:l:")) != -1)
     {
         switch (res)
         {
-	case 'h':
+        case 'h':
             usage(argv[0]);
             return false;
+
         case 'f':
             out->isDaemon = false;
             // this option was added in fuse 2.x
             PUSHARG("-f");
-	    	rLog(Info,"LoggedFS not running as a daemon");
+            rLog(errChannel, "LoggedFS not running as a daemon");
             break;
+
         case 'p':
             PUSHARG("-o");
             PUSHARG("allow_other,default_permissions," COMMON_OPTS);
-            got_p = true; 
-            rLog(Info,"LoggedFS running as a public filesystem");
+            got_p = true;
+            rLog(errChannel, "LoggedFS running as a public filesystem");
             break;
+
         case 'e':
             PUSHARG("-o");
             PUSHARG("nonempty");
-            rLog(Info,"Using existing directory");
+            rLog(errChannel, "Using existing directory");
             break;
+
         case 'c':
-            out->configFilename=optarg;
-	    	rLog(Info,"Configuration file : %s",optarg);
+            out->configFilename = optarg;
+            rLog(errChannel, "Configuration file: %s", optarg);
             break;
+
         case 'l':
-            fileLog=open(optarg,O_WRONLY|O_CREAT|O_APPEND );
-            fileLogNode=new StdioNode(fileLog);
-            fileLogNode->subscribeTo( RLOG_CHANNEL("") );
-	    	rLog(Info,"LoggedFS log file : %s",optarg);
+            fileLog = open(optarg, O_WRONLY | O_CREAT | O_APPEND);
+            fileLogNode = new StdioNode(fileLog, 16);
+            fileLogNode->subscribeTo(RLOG_CHANNEL(""));
+            rLog(errChannel, "LoggedFS log file: %s", optarg);
             break;
 
         default:
-
             break;
         }
     }
@@ -712,24 +1002,24 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
     }
 #undef COMMON_OPTS
 
-    if(optind+1 <= argc)
+    if (optind + 1 <= argc)
     {
         out->mountPoint = argv[optind++];
         out->fuseArgv[1] = out->mountPoint;
     }
     else
     {
-        fprintf(stderr,"Missing mountpoint\n");
-	usage(argv[0]);
+        fprintf(stderr, "Missing mountpoint\n");
+        usage(argv[0]);
         return false;
     }
 
     // If there are still extra unparsed arguments, pass them onto FUSE..
-    if(optind < argc)
+    if (optind < argc)
     {
         rAssert(out->fuseArgc < MaxFuseArgs);
 
-        while(optind < argc)
+        while (optind < argc)
         {
             rAssert(out->fuseArgc < MaxFuseArgs);
             out->fuseArgv[out->fuseArgc++] = argv[optind];
@@ -737,134 +1027,148 @@ bool processArgs(int argc, char *argv[], LoggedFS_Args *out)
         }
     }
 
-    if(!isAbsolutePath( out->mountPoint ))
+    if (!isAbsolutePath(out->mountPoint))
     {
-        fprintf(stderr,"You must use absolute paths "
-                "(beginning with '/') for %s\n",out->mountPoint);
+        fprintf(stderr, "You must use absolute paths "
+                "(beginning with '/') for %s\n", out->mountPoint);
         return false;
     }
     return true;
 }
 
-
-
-
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-    RLogInit( argc, argv );
+    RLogInit(argc, argv);
 
-    StdioNode* stdLog=new StdioNode(STDOUT_FILENO);
-    stdLog->subscribeTo( RLOG_CHANNEL("") );
-    SyslogNode *logNode = NULL;
-    char* input=new char[2048]; // 2ko MAX input for configuration
+    StdioNode* stdOut = new StdioNode(STDOUT_FILENO, 17);
+    stdOut->subscribeTo(RLOG_CHANNEL("out"));
 
+    StdioNode* stdErr = new StdioNode(STDERR_FILENO, 17);
+    stdErr->subscribeTo(RLOG_CHANNEL("err"));
 
-
+    SyslogNode* logNode = NULL;
+    char* input = new char[2048]; // 2kB MAX input for configuration
 
     umask(0);
     fuse_operations loggedFS_oper;
     // in case this code is compiled against a newer FUSE library and new
     // members have been added to fuse_operations, make sure they get set to
     // 0..
-    memset(&loggedFS_oper, 0, sizeof(fuse_operations));
-    loggedFS_oper.init		= loggedFS_init;
-    loggedFS_oper.getattr	= loggedFS_getattr;
-    loggedFS_oper.access	= loggedFS_access;
-    loggedFS_oper.readlink	= loggedFS_readlink;
-    loggedFS_oper.readdir	= loggedFS_readdir;
-    loggedFS_oper.mknod	= loggedFS_mknod;
-    loggedFS_oper.mkdir	= loggedFS_mkdir;
-    loggedFS_oper.symlink	= loggedFS_symlink;
-    loggedFS_oper.unlink	= loggedFS_unlink;
-    loggedFS_oper.rmdir	= loggedFS_rmdir;
-    loggedFS_oper.rename	= loggedFS_rename;
-    loggedFS_oper.link	= loggedFS_link;
-    loggedFS_oper.chmod	= loggedFS_chmod;
-    loggedFS_oper.chown	= loggedFS_chown;
-    loggedFS_oper.truncate	= loggedFS_truncate;
+    memset(&loggedFS_oper, 0, sizeof (fuse_operations));
+    loggedFS_oper.init = loggedFS_init;
+    loggedFS_oper.getattr = loggedFS_getattr;
+    loggedFS_oper.access = loggedFS_access;
+    loggedFS_oper.readlink = loggedFS_readlink;
+    loggedFS_oper.readdir = loggedFS_readdir;
+    loggedFS_oper.mknod = loggedFS_mknod;
+    loggedFS_oper.mkdir = loggedFS_mkdir;
+    loggedFS_oper.symlink = loggedFS_symlink;
+    loggedFS_oper.unlink = loggedFS_unlink;
+    loggedFS_oper.rmdir = loggedFS_rmdir;
+    loggedFS_oper.rename = loggedFS_rename;
+    loggedFS_oper.link = loggedFS_link;
+    loggedFS_oper.chmod = loggedFS_chmod;
+    loggedFS_oper.chown = loggedFS_chown;
+    loggedFS_oper.truncate = loggedFS_truncate;
+
 #if (FUSE_USE_VERSION==25)
-    loggedFS_oper.utime       = loggedFS_utime;
+    loggedFS_oper.utime = loggedFS_utime;
 #else
-    loggedFS_oper.utimens	= loggedFS_utimens;
+    loggedFS_oper.utimens = loggedFS_utimens;
 #endif
-    loggedFS_oper.open	= loggedFS_open;
-    loggedFS_oper.read	= loggedFS_read;
-    loggedFS_oper.write	= loggedFS_write;
-    loggedFS_oper.statfs	= loggedFS_statfs;
-    loggedFS_oper.release	= loggedFS_release;
-    loggedFS_oper.fsync	= loggedFS_fsync;
+
+    loggedFS_oper.open = loggedFS_open;
+    loggedFS_oper.read = loggedFS_read;
+    loggedFS_oper.write = loggedFS_write;
+    loggedFS_oper.statfs = loggedFS_statfs;
+    loggedFS_oper.release = loggedFS_release;
+    loggedFS_oper.fsync = loggedFS_fsync;
+
 #ifdef HAVE_SETXATTR
-    loggedFS_oper.setxattr	= loggedFS_setxattr;
-    loggedFS_oper.getxattr	= loggedFS_getxattr;
-    loggedFS_oper.listxattr	= loggedFS_listxattr;
-    loggedFS_oper.removexattr= loggedFS_removexattr;
+    loggedFS_oper.setxattr = loggedFS_setxattr;
+    loggedFS_oper.getxattr = loggedFS_getxattr;
+    loggedFS_oper.listxattr = loggedFS_listxattr;
+    loggedFS_oper.removexattr = loggedFS_removexattr;
 #endif
 
-
-    for(int i=0; i<MaxFuseArgs; ++i)
+    for (int i = 0; i < MaxFuseArgs; ++i)
         loggedfsArgs->fuseArgv[i] = NULL; // libfuse expects null args..
 
     if (processArgs(argc, argv, loggedfsArgs))
     {
         if (loggedfsArgs->isDaemon)
         {
-            logNode = new SyslogNode( "loggedfs" );
-            logNode->subscribeTo( RLOG_CHANNEL("") );
-            // disable stderr reporting..
-            delete stdLog;
-            stdLog = NULL;
+            logNode = new SyslogNode("loggedfs");
+            logNode->subscribeTo(RLOG_CHANNEL(""));
+
+            // disable stdout and stderr reporting..
+            delete stdOut;
+            stdOut = NULL;
+            delete stdErr;
+            stdErr = NULL;
         }
 
-        rLog(Info, "LoggedFS starting at %s.",loggedfsArgs->mountPoint);
+        rLog(errChannel, "LoggedFS starting at %s.", loggedfsArgs->mountPoint);
 
-        if (loggedfsArgs->configFilename!=NULL)
+        if (loggedfsArgs->configFilename != NULL)
         {
-
-            if (strcmp(loggedfsArgs->configFilename,"-")==0)
+            if (strcmp(loggedfsArgs->configFilename, "-") == 0)
             {
-                rLog(Info, "Using stdin configuration");
-                memset(input,0,2048);
-                char *ptr=input;
+                rLog(errChannel, "Using stdin configuration");
+                memset(input, 0, 2048);
+                char* ptr = input;
 
-                int size=0;
-                do {
-                    size=fread(ptr,1,1,stdin);
+                int size = 0;
+
+                do
+                {
+                    size = fread(ptr, 1, 1, stdin);
                     ptr++;
-                }while (!feof(stdin) && size>0);
+                }
+                while (!feof(stdin) && size > 0);
+
                 config.loadFromXmlBuffer(input);
             }
             else
             {
-                rLog(Info, "Using configuration file %s.",loggedfsArgs->configFilename);
+                rLog(errChannel, "Using configuration file %s.",
+                     loggedfsArgs->configFilename);
+
                 config.loadFromXmlFile(loggedfsArgs->configFilename);
             }
         }
 
-        rLog(Info,"chdir to %s",loggedfsArgs->mountPoint);
+        rLog(errChannel, "chdir to %s", loggedfsArgs->mountPoint);
         chdir(loggedfsArgs->mountPoint);
         savefd = open(".", 0);
 
+        rLog(outChannel, HeaderStr.data());
+
 #if (FUSE_USE_VERSION==25)
         fuse_main(loggedfsArgs->fuseArgc,
-                  const_cast<char**>(loggedfsArgs->fuseArgv), &loggedFS_oper);
+                  const_cast<char**> (loggedfsArgs->fuseArgv), &loggedFS_oper);
 #else
-	 fuse_main(loggedfsArgs->fuseArgc,
-                  const_cast<char**>(loggedfsArgs->fuseArgv), &loggedFS_oper, NULL);
+        fuse_main(loggedfsArgs->fuseArgc,
+                  const_cast<char**> (loggedfsArgs->fuseArgv), &loggedFS_oper,
+                  NULL);
 #endif
-        delete stdLog;
-        stdLog = NULL;
-        if (fileLog!=0)
+
+        delete stdOut;
+        stdOut = NULL;
+
+        if (fileLog != 0)
         {
             delete fileLogNode;
-            fileLogNode=NULL;
+            fileLogNode = NULL;
             close(fileLog);
         }
+
         if (loggedfsArgs->isDaemon)
         {
             delete logNode;
-            logNode=NULL;
+            logNode = NULL;
         }
-        rLog(Info,"LoggedFS closing.");
 
+        rLog(errChannel, "LoggedFS closing.");
     }
 }
