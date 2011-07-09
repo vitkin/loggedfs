@@ -1,6 +1,5 @@
 /*****************************************************************************
  * Author:   Rémi Flament <remipouak@yahoo.fr>
- *
  *****************************************************************************
  * Copyright (c) 2005, Rémi Flament
  *
@@ -16,6 +15,11 @@
  *
  */
 
+/*****************************************************************************
+ * Modifications: Victor Itkin <victor.itkin@gmail.com>
+ *****************************************************************************
+ */
+
 #ifndef LOGGEDFS_CONFIG_H
 #define LOGGEDFS_CONFIG_H
 
@@ -25,22 +29,32 @@ using namespace std;
 #include <libxml/tree.h>
 #include "Filter.h"
 
-class Config
-{
+class Config {
 public:
     Config();
     ~Config();
 
-    bool load(const char *fileName);
-    bool loadFromXmlFile(const char *fileName);
-    bool loadFromXmlBuffer(const char *buffer);
+    bool load(const char* fileName);
+    bool loadFromXmlFile(const char* fileName);
+    bool loadFromXmlBuffer(const char* buffer);
     bool loadFromXml(xmlDoc* doc);
-    bool isEnabled() {return enabled;};
-    bool isTimeEnabled() {return timeEnabled;};
-    bool isPrintProcessNameEnabled() {return pNameEnabled;};
-    bool shouldLog(const char* filename, int uid, const char* action, const char *retname);
-    char* toString();
 
+    bool isEnabled() {
+        return enabled;
+    };
+
+    bool isTimeEnabled() {
+        return timeEnabled;
+    };
+
+    bool isPrintProcessNameEnabled() {
+        return pNameEnabled;
+    };
+
+    bool shouldLog(const char* filename, int uid, const char* action,
+            const char* retname);
+
+    char* toString();
 
 private:
     void parse(xmlNode*);
