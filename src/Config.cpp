@@ -1,6 +1,6 @@
-/*****************************************************************************
+/*******************************************************************************
  * Author:   Rémi Flament <remipouak@yahoo.fr>
- *****************************************************************************
+ *******************************************************************************
  * Copyright (c) 2005, Rémi Flament
  *
  * This library is free software; you can distribute it and/or modify it under
@@ -15,9 +15,9 @@
  *
  */
 
-/*****************************************************************************
+/*******************************************************************************
  * Modifications: Victor Itkin <victor.itkin@gmail.com>
- *****************************************************************************
+ *******************************************************************************
  */
 
 #include "Config.h"
@@ -47,6 +47,9 @@ Config::~Config()
     excludes.clear();
 }
 
+/*******************************************************************************
+ *
+ */
 void Config::parse(xmlNode* a_node)
 {
     xmlNode* cur_node = NULL;
@@ -147,6 +150,9 @@ void Config::parse(xmlNode* a_node)
     }
 }
 
+/*******************************************************************************
+ *
+ */
 bool Config::loadFromXml(xmlDoc* doc)
 {
     xmlNode* root_element = NULL;
@@ -155,9 +161,13 @@ bool Config::loadFromXml(xmlDoc* doc)
     parse(root_element);
     xmlFreeDoc(doc);
     xmlCleanupParser();
+    
     return true;
 }
 
+/*******************************************************************************
+ *
+ */
 bool Config::loadFromXmlBuffer(const char* buffer)
 {
     xmlDoc* doc = NULL;
@@ -165,9 +175,13 @@ bool Config::loadFromXmlBuffer(const char* buffer)
     LIBXML_TEST_VERSION
 
     doc = xmlReadMemory(buffer, strlen(buffer), "", NULL, XML_PARSE_NONET);
+    
     return loadFromXml(doc);
 }
 
+/*******************************************************************************
+ *
+ */
 bool Config::loadFromXmlFile(const char* filename)
 {
     xmlDoc* doc = NULL;
@@ -175,9 +189,13 @@ bool Config::loadFromXmlFile(const char* filename)
     LIBXML_TEST_VERSION
 
     doc = xmlReadFile(filename, NULL, 0);
+    
     return loadFromXml(doc);
 }
 
+/*******************************************************************************
+ *
+ */
 bool Config::shouldLog(const char* filename, int uid, const char* action,
                        const char* retname)
 {
@@ -206,7 +224,6 @@ bool Config::shouldLog(const char* filename, int uid, const char* action,
         {
             should = true;
         }
-
     }
 
     return should;

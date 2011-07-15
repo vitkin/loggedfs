@@ -1,6 +1,6 @@
-/*****************************************************************************
+/*******************************************************************************
  * Author:   Remi Flament <rflament at laposte dot net>
- *****************************************************************************
+ *******************************************************************************
  * Copyright (c) 2005 - 2007, Remi Flament
  *
  * This library is free software; you can distribute it and/or modify it under
@@ -15,9 +15,9 @@
  *
  */
 
-/*****************************************************************************
+/*******************************************************************************
  * Modifications: Victor Itkin <victor.itkin@gmail.com>
- *****************************************************************************
+ *******************************************************************************
  */
 
 #include "Filter.h"
@@ -25,14 +25,23 @@
 
 #define OVECCOUNT 30
 
+/*******************************************************************************
+ *
+ */
 Filter::Filter()
 {
 }
 
+/*******************************************************************************
+ *
+ */
 Filter::~Filter()
 {
 }
 
+/*******************************************************************************
+ *
+ */
 bool Filter::matches(const char* str, const char* pattern)
 {
     pcre* re;
@@ -51,7 +60,7 @@ bool Filter::matches(const char* str, const char* pattern)
     {
         fprintf(stderr, "PCRE compilation failed at offset %d: %s\n",
                 erroffset, error);
-        
+
         return false;
     }
 
@@ -67,7 +76,11 @@ bool Filter::matches(const char* str, const char* pattern)
     return (rc >= 0);
 }
 
-bool Filter::matches(const char* path, int uid, const char* action, const char* retname)
+/*******************************************************************************
+ *
+ */
+bool Filter::matches(const char* path, int uid, const char* action,
+                     const char* retname)
 {
     bool a = (matches(path, this->extension) &&
             (uid == this->uid || this->uid == -1) &&
