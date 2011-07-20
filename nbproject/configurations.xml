@@ -1,15 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configurationDescriptor version="79">
   <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
-    <df name="LoggedFS-CSV" root=".">
-      <df name="src">
-        <in>Config.cpp</in>
-        <in>Config.h</in>
-        <in>Filter.cpp</in>
-        <in>Filter.h</in>
-        <in>loggedfs.cpp</in>
-      </df>
-    </df>
+    <logicalFolder name="HeaderFiles"
+                   displayName="Header Files"
+                   projectFiles="true">
+      <itemPath>src/Config.h</itemPath>
+      <itemPath>src/Filter.h</itemPath>
+    </logicalFolder>
+    <logicalFolder name="ResourceFiles"
+                   displayName="Resource Files"
+                   projectFiles="true">
+      <itemPath>LICENSE</itemPath>
+      <itemPath>README</itemPath>
+      <itemPath>loggedfs.1</itemPath>
+      <itemPath>loggedfs.xml</itemPath>
+    </logicalFolder>
+    <logicalFolder name="SourceFiles"
+                   displayName="Source Files"
+                   projectFiles="true">
+      <itemPath>src/Config.cpp</itemPath>
+      <itemPath>src/Filter.cpp</itemPath>
+      <itemPath>src/loggedfs.cpp</itemPath>
+    </logicalFolder>
+    <logicalFolder name="TestFiles"
+                   displayName="Test Files"
+                   projectFiles="false"
+                   kind="TEST_LOGICAL_FOLDER">
+    </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
                    projectFiles="false"
@@ -17,35 +34,307 @@
       <itemPath>Makefile</itemPath>
     </logicalFolder>
   </logicalFolder>
-  <sourceFolderFilter>^(nbproject)$</sourceFolderFilter>
   <sourceRootList>
-    <Elem>.</Elem>
+    <Elem>../src</Elem>
   </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
-    <conf name="Default" type="0">
+    <conf name="Release" type="1">
       <toolsSet>
         <remote-sources-mode>LOCAL_SOURCES</remote-sources-mode>
-        <compilerSet>GNU|GNU</compilerSet>
+        <compilerSet>default</compilerSet>
       </toolsSet>
-      <makefileType>
-        <makeTool>
-          <buildCommandWorkingDir>.</buildCommandWorkingDir>
-          <buildCommand>${MAKE} -f Makefile</buildCommand>
-          <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
-          <executablePath></executablePath>
-          <ccTool>
-            <incDir>
-              <pElem></pElem>
-            </incDir>
-            <preprocessorList>
-              <Elem>_FILE_OFFSET_BITS=64</Elem>
-              <Elem>RLOG_COMPONENT="loggedfs"</Elem>
-              <Elem>FUSE_USE_VERSION=26</Elem>
-            </preprocessorList>
-          </ccTool>
-        </makeTool>
-      </makefileType>
+      <compileType>
+        <cTool>
+          <developmentMode>5</developmentMode>
+        </cTool>
+        <ccTool>
+          <developmentMode>5</developmentMode>
+          <commandLine>-ansi</commandLine>
+          <preprocessorList>
+            <Elem>_FILE_OFFSET_BITS=64</Elem>
+            <Elem>FUSE_USE_VERSION=26</Elem>
+            <Elem>RLOG_COMPONENT="loggedfs"</Elem>
+          </preprocessorList>
+          <warningLevel>2</warningLevel>
+        </ccTool>
+        <fortranCompilerTool>
+          <developmentMode>5</developmentMode>
+        </fortranCompilerTool>
+        <asmTool>
+          <developmentMode>5</developmentMode>
+        </asmTool>
+        <linkerTool>
+          <linkerLibItems>
+            <linkerOptionItem>-lpcre</linkerOptionItem>
+            <linkerOptionItem>-lfuse</linkerOptionItem>
+            <linkerOptionItem>-lrlog</linkerOptionItem>
+            <linkerOptionItem>`pkg-config --libs libxml-2.0`</linkerOptionItem>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+      <packaging>
+        <packType>Tar</packType>
+        <packFileList>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}LICENSE"
+                            from="LICENSE"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}loggedfs.1"
+                            from="loggedfs.1"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}loggedfs.xml"
+                            from="loggedfs.xml"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}Makefile"
+                            from="Makefile"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}README"
+                            from="README"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/configurations.xml"
+                            from="nbproject/configurations.xml"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Makefile-Debug.mk"
+                            from="nbproject/Makefile-Debug.mk"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Makefile-impl.mk"
+                            from="nbproject/Makefile-impl.mk"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Makefile-Release.mk"
+                            from="nbproject/Makefile-Release.mk"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Makefile-variables.mk"
+                            from="nbproject/Makefile-variables.mk"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Package-Debug.bash"
+                            from="nbproject/Package-Debug.bash"
+                            perm="755"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Package-Release.bash"
+                            from="nbproject/Package-Release.bash"
+                            perm="755"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/project.properties"
+                            from="nbproject/project.properties"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/project.xml"
+                            from="nbproject/project.xml"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}src/Config.cpp"
+                            from="src/Config.cpp"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}src/Config.h"
+                            from="src/Config.h"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}src/Filter.cpp"
+                            from="src/Filter.cpp"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}src/Filter.h"
+                            from="src/Filter.h"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}src/loggedfs.cpp"
+                            from="src/loggedfs.cpp"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+        </packFileList>
+      </packaging>
+    </conf>
+    <conf name="Debug" type="1">
+      <toolsSet>
+        <remote-sources-mode>LOCAL_SOURCES</remote-sources-mode>
+        <compilerSet>OracleSolarisStudio_12.2_linuxCompatGNU|OracleSolarisStudio_12.2_linuxCompatGNU</compilerSet>
+      </toolsSet>
+      <compileType>
+        <ccTool>
+          <preprocessorList>
+            <Elem>_FILE_OFFSET_BITS=64</Elem>
+            <Elem>FUSE_USE_VERSION=26</Elem>
+            <Elem>RLOG_COMPONENT="loggedfs"</Elem>
+          </preprocessorList>
+          <warningLevel>2</warningLevel>
+        </ccTool>
+        <linkerTool>
+          <linkerLibItems>
+            <linkerOptionItem>-lpcre</linkerOptionItem>
+            <linkerOptionItem>-lfuse</linkerOptionItem>
+            <linkerOptionItem>-lrlog</linkerOptionItem>
+            <linkerOptionItem>`pkg-config --libs libxml-2.0`</linkerOptionItem>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+      <packaging>
+        <packType>Tar</packType>
+        <packFileList>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}LICENSE"
+                            from="LICENSE"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}loggedfs.1"
+                            from="loggedfs.1"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}loggedfs.xml"
+                            from="loggedfs.xml"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}Makefile"
+                            from="Makefile"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}README"
+                            from="README"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/configurations.xml"
+                            from="nbproject/configurations.xml"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Makefile-Debug.mk"
+                            from="nbproject/Makefile-Debug.mk"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Makefile-impl.mk"
+                            from="nbproject/Makefile-impl.mk"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Makefile-Release.mk"
+                            from="nbproject/Makefile-Release.mk"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Makefile-variables.mk"
+                            from="nbproject/Makefile-variables.mk"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Package-Debug.bash"
+                            from="nbproject/Package-Debug.bash"
+                            perm="755"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/Package-Release.bash"
+                            from="nbproject/Package-Release.bash"
+                            perm="755"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/project.properties"
+                            from="nbproject/project.properties"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}nbproject/project.xml"
+                            from="nbproject/project.xml"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}src/Config.cpp"
+                            from="src/Config.cpp"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}src/Config.h"
+                            from="src/Config.h"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}src/Filter.cpp"
+                            from="src/Filter.cpp"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}src/Filter.h"
+                            from="src/Filter.h"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}src/loggedfs.cpp"
+                            from="src/loggedfs.cpp"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+        </packFileList>
+      </packaging>
     </conf>
   </confs>
 </configurationDescriptor>

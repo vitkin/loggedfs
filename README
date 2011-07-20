@@ -81,7 +81,7 @@ Packages required for building the project:
 
 Installation:
 =============
-# make && make install
+# make install
 
 Notes:
 ======
