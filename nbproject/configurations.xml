@@ -6,6 +6,7 @@
                    projectFiles="true">
       <itemPath>src/Config.h</itemPath>
       <itemPath>src/Filter.h</itemPath>
+      <itemPath>src/loggedfs.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
                    displayName="Resource Files"
@@ -42,7 +43,7 @@
     <conf name="Release" type="1">
       <toolsSet>
         <remote-sources-mode>LOCAL_SOURCES</remote-sources-mode>
-        <compilerSet>default</compilerSet>
+        <compilerSet>GNU|GNU</compilerSet>
       </toolsSet>
       <compileType>
         <cTool>
@@ -190,6 +191,12 @@
                             perm="644"
                             owner="root"
                             group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}loggedfs.h"
+                            from="src/loggedfs.h"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
         </packFileList>
       </packaging>
     </conf>
@@ -330,6 +337,12 @@
           <packFileListElem type="File"
                             to="${PACKAGE_TOP_DIR}src/loggedfs.cpp"
                             from="src/loggedfs.cpp"
+                            perm="644"
+                            owner="root"
+                            group="bin"/>
+          <packFileListElem type="File"
+                            to="${PACKAGE_TOP_DIR}loggedfs.h"
+                            from="src/loggedfs.h"
                             perm="644"
                             owner="root"
                             group="bin"/>

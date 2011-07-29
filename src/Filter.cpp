@@ -21,7 +21,6 @@
  */
 
 #include "Filter.h"
-#include <pcre.h>
 
 #define OVECCOUNT 30
 
@@ -37,6 +36,14 @@ Filter::Filter()
  */
 Filter::~Filter()
 {
+    map<string, pcre*>::iterator it;
+
+    for (it = regexMap.begin(); it != regexMap.end(); it++)
+    {
+        pcre_free((*it).second);
+    }
+
+    regexMap.clear();
 }
 
 /*******************************************************************************
@@ -44,25 +51,38 @@ Filter::~Filter()
  */
 bool Filter::matches(const char* str, const char* pattern)
 {
-    pcre* re;
+    pcre* re; 
     const char* error;
-    int ovector[OVECCOUNT];
     int erroffset;
 
-    re = pcre_compile(pattern,
-                      0,
-                      &error,
-                      &erroffset,
-                      NULL);
-
-
-    if (re == NULL)
+    // Check if a regular expression has been compiled for the pattern   
+    if (regexMap.count(pattern) == 0)
     {
-        fprintf(stderr, "PCRE compilation failed at offset %d: %s\n",
-                erroffset, error);
+        // Compile a regular expression for that pattern
+        re = pcre_compile(pattern,
+                          0,
+                          &error,
+                          &erroffset,
+                          NULL);
 
-        return false;
+        if (re == NULL)
+        {
+            fprintf(stderr, "PCRE compilation failed at offset %d: %s\n",
+                    erroffset, error);
+            
+            return false;
+        }
+
+        // Add the compiled regex for the pattern to the map
+        regexMap[pattern] = re;
     }
+    else
+    {
+        // Retrieve the compiled regex for the pattern from the map
+        re = regexMap[pattern];
+    }
+    
+    int ovector[OVECCOUNT];
 
     int rc = pcre_exec(re, /* the compiled pattern */
                        NULL, /* no extra data - we didn't study the pattern */
@@ -72,6 +92,8 @@ bool Filter::matches(const char* str, const char* pattern)
                        0, /* default options */
                        ovector, /* output vector for substring information */
                        OVECCOUNT); /* number of elements in the output vector */
+    
+    //free(ovector);
 
     return (rc >= 0);
 }
@@ -79,13 +101,13 @@ bool Filter::matches(const char* str, const char* pattern)
 /*******************************************************************************
  *
  */
-bool Filter::matches(const char* path, int uid, const char* action,
-                     const char* retname)
+bool Filter::matches(const char* path, int rUid, const char* rAction,
+                     const char* rRetname)
 {
     bool a = (matches(path, this->extension) &&
-            (uid == this->uid || this->uid == -1) &&
-            matches(action, this->action) &&
-            matches(retname, this->retname));
+            (rUid == this->uid || this->uid == -1) &&
+            matches(rAction, this->action) &&
+            matches(rRetname, this->retname));
 
     return a;
 }

@@ -134,6 +134,10 @@ cd "${TOP}"
 makeDirectory "${NBTMPDIR}/loggedfs-csv/src"
 copyFileToTmpDir "src/loggedfs.cpp" "${NBTMPDIR}/${PACKAGE_TOP_DIR}src/loggedfs.cpp" 0644
 
+cd "${TOP}"
+makeDirectory "${NBTMPDIR}/loggedfs-csv"
+copyFileToTmpDir "src/loggedfs.h" "${NBTMPDIR}/${PACKAGE_TOP_DIR}loggedfs.h" 0644
+
 
 # Generate tar file
 cd "${TOP}"

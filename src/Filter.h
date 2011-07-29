@@ -24,7 +24,11 @@
 #define LOGGEDFS_FILTER_H
 
 #include <stdio.h>
-#include <string.h>
+#include <pcre.h>
+#include <string>
+#include <map>
+
+using namespace std;
 
 class Filter {
 public:
@@ -72,6 +76,7 @@ private:
     const char* action;
     const char* retname;
     bool matches(const char* str, const char* pattern);
+    map<string, pcre*> regexMap;
 };
 
 #endif
